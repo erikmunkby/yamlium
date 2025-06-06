@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/erikmunkby/yamlium/compare/v0.1.1...v0.1.2) (2025-06-06)
+
+
+### Bug Fixes
+
+* add normal pypi publishing ([4299b3b](https://github.com/erikmunkby/yamlium/commit/4299b3b40bf70b46039ca8d1d18855154b4f169c))
+
 ## [0.1.1](https://github.com/erikmunkby/yamlium/compare/v0.1.0...v0.1.1) (2025-06-06)
 
 
