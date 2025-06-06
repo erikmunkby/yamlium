@@ -1,0 +1,131 @@
+# Basic key-value pairs
+simple_key_value:
+  name: bob
+  age: 25
+  active: true
+
+# Nested mappings
+nested_mappings:
+  user:
+    name: alice
+    address:
+      street: 123 Main St
+      city: Boston
+
+# Sequences (lists)
+sequences:
+  numbers: [1, 2, 3] # Flow style sequence
+  names: # Block style sequence
+    - alice
+    - bob
+    - charlie
+
+# Mixed structures
+mixed_structures:
+  users: # Sequence of mappings
+    - name: alice
+      age: 25
+    - name: bob
+      age: 30
+  settings: # Mixed flow and block style
+    active: true
+    features: [a, b, c]
+
+# Scalar types
+scalar_types:
+  string: hello world
+  integer: 42
+  float: 3.14
+  boolean_true: true
+  boolean_false: false
+  null_value: null
+  quoted: "quoted string"
+
+# Multiline strings
+multiline_strings:
+  # Preserves newlines
+  literal: |
+    This is a
+    multiline string
+    with multiple lines
+  # Folds newlines to spaces
+  folded: >
+    This is a folded
+    string that will
+    be joined with spaces
+
+# Flow style collections
+flow_style:
+  flow_map: { a: 1, b: 2, c: 3 } # Inline mapping
+  flow_seq: [1, 2, 3, 4] # Inline sequence
+  mixed: { a: [1, 2], b: { x: 1, y: 2 } } # Nested flow style
+
+# Empty structures
+empty_structures:
+  empty_map: {}
+  empty_seq: []
+  nested_empty:
+    map: {}
+    seq: []
+
+# Complex nesting
+complex_nesting:
+  level1:
+    level2:
+      level3:
+        level4:
+          level5:
+            final: value
+          other: value
+        another: value
+      more: value
+    extra: value
+
+# Sequence of mappings
+sequence_of_mappings:
+  items:
+    - name: item1
+      value: 1
+    - name: item2
+      value: 2
+    - name: item3
+      value: 3
+
+# Special characters
+special_characters:
+  special_chars: "!@#$%^&*()_+-=[]{}|;:,.<>?/~`" # All special chars
+  unicode: "你好世界" # Unicode characters
+
+# Anchor and alias
+anchor_alias:
+  base: &anchor1 # Define anchor
+    name: default
+    value: 42
+  derived1: *anchor1 # Use anchor
+  derived2: *anchor1 # Use same anchor
+
+# Merge keys
+merge_keys:
+  base: &anchor2
+    name: default
+    value: 42
+  override: &override
+    value: 100
+  merged:
+    <<: [*anchor2, *override] # Merge multiple anchors
+    extra: value
+
+# Complex anchor chains
+complex_anchor_chains:
+  base: &anchor3
+    name: default
+    value: 42
+  derived1: &derived1
+    <<: *anchor3 # First level merge
+    extra: value1
+  derived2: &derived2
+    <<: *derived1 # Second level merge
+    more: value2
+  final:
+    <<: *derived2 # Final merge
+    final: value3
