@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/erikmunkby/yamlium/compare/v0.1.2...v0.1.3) (2025-06-06)
+
+
+### Bug Fixes
+
+* remove test pypi ([e195642](https://github.com/erikmunkby/yamlium/commit/e195642eb113eb16df3a440e374112cebc922003))
+
 ## [0.1.2](https://github.com/erikmunkby/yamlium/compare/v0.1.1...v0.1.2) (2025-06-06)
 
 
