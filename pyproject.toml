@@ -2,7 +2,19 @@
 name = "yamlium"
 version = "0.1.0"
 requires-python = ">=3.10"
+description = "Fast, modern yaml parser and manipulator"
+readme = "README.md"
+authors = [{ name = "Erik Munkby", email = "erik.munkby@gmail.com" }]
+license = { file = "LICENSE" }
 dependencies = []
+classifiers=[
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+]
 
 [dependency-groups]
 dev = [
@@ -12,6 +24,12 @@ dev = [
     "pyyaml>=6.0.2",
     "ruff>=0.11.12",
 ]
+
+[project.urls]
+Homepage = "https://github.com/erikmunkby/yamlium"
+Documentation = "https://github.com/erikmunkby/yamlium"
+Repository = "https://github.com/erikmunkby/yamlium"
+Issues = "https://github.com/erikmunkby/yamlium/issues"
 
 [build-system]
 requires = ["hatchling"]
