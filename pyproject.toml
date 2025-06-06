@@ -1,6 +1,6 @@
 [project]
 name = "yamlium"
-version = "0.1.0"
+version = "0.1.1"
 requires-python = ">=3.10"
 description = "Fast, modern yaml parser and manipulator"
 readme = "README.md"
