@@ -49,10 +49,5 @@ jobs:
             gh release upload ${{ needs.build-release.outputs.tag_name }} "$f"
           done
 
-      - name: Test PyPI publish
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-
       - name: PyPI publish
         uses: pypa/gh-action-pypi-publish@release/v1
