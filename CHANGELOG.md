@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/erikmunkby/yamlium/compare/v0.1.3...v0.1.4) (2025-06-08)
+
+
+### Bug Fixes
+
+* typing on default value ([e524ade](https://github.com/erikmunkby/yamlium/commit/e524adea105d9e0ef9cb6efbe372668e9a7f0f21))
+
 ## [0.1.3](https://github.com/erikmunkby/yamlium/compare/v0.1.2...v0.1.3) (2025-06-06)
 
 
