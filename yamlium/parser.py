@@ -319,7 +319,7 @@ class Parser:
         # Set up class vars
         self.pos = 0
         self.current_indent = 0
-        self.tokens = Lexer(input=self.input).build_tokens()
+        self.tokens = Lexer(self.input).build_tokens()
         self.num_tokens = len(self.tokens)
         self.node_stack: deque[Node] = deque([])
         self.anchors: dict[str, Node] = {}
