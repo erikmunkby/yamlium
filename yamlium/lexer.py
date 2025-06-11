@@ -59,17 +59,10 @@ class Snapshot:
 
 
 class Lexer:
-    def __init__(self, input: str):
+    def __init__(self, input: str, /):
         self.input = input
         self.input_length = len(input)
         # These variables are used in token building
-
-    def _reset(self) -> None:
-        self.position = 0
-        self.line = 0
-        self.column = 0
-        self.indent_stack: deque[int] = deque([0])
-        self.tokens: list[Token] = []
 
     def token_names(self) -> list[str]:
         return [t.t.name for t in self.build_tokens()]
@@ -79,9 +72,15 @@ class Lexer:
 
     def build_tokens(self) -> list[Token]:
         # Pause current position
-        self._reset()
-        while self._parse_next_token() != T.EOF:
-            pass
+        self.position = 0
+        self.line = 0
+        self.column = 0
+        self.indent_stack: deque[int] = deque([0])
+        self.tokens: list[Token] = []
+        while t := self._parse_next_token():
+            self.tokens.append(t)
+            if t.t == T.EOF:
+                break
         return self.tokens
 
     def _raise_error(self, msg: str, pos: int | None = None) -> NoReturn:
@@ -98,7 +97,7 @@ class Lexer:
         """Get current character."""
         return self.input[self.position]
 
-    def _parse_next_token(self, extra_stop_chars: set = set()) -> T:
+    def _parse_next_token(self, extra_stop_chars: set = set()) -> Token:
         """Get the next token from the input."""
         # Check if we're at the end of document.
         if self.position > self.input_length:
@@ -107,7 +106,7 @@ class Lexer:
         # End of file.
         if self.position >= self.input_length:
             self._nc()
-            return self._add_token(t=T.EOF, value="")
+            return self._build_token(t=T.EOF, value="")
 
         # Find out which type of character is next.
         char = self.c
@@ -121,7 +120,7 @@ class Lexer:
         if char == " ":
             # Skip normal newlines
             self._nc()
-            return T.NO_TOKEN
+            return self._parse_next_token(extra_stop_chars=extra_stop_chars)
         if char == "-":
             return self._parse_dash()
         if char == "#":
@@ -135,53 +134,55 @@ class Lexer:
         if char in [">", "|"]:
             return self._parse_multiline()
         if char == "{":
-            return self._parse_inline_mapping()
+            return self._parse_flow_style(mapping=True)
+        if char == "[":
+            return self._parse_flow_style(mapping=False)
         if char == "}":
-            t = self._add_token(t=T.MAPPING_END, value="}")
+            t = self._build_token(t=T.MAPPING_END, value="}")
             self._nc()
             return t
-        if char == "[":
-            return self._parse_inline_sequence()
         if char == "]":
-            t = self._add_token(t=T.SEQUENCE_END, value="]")
+            t = self._build_token(t=T.SEQUENCE_END, value="]")
             self._nc()
             return t
         if char == ",":
             self._nc()
-            return self._add_token(t=T.COMMA, value=",")
+            self._add_token(t=T.COMMA, value=",")
+            return self._parse_next_token(extra_stop_chars=extra_stop_chars)
 
         # If nothing else, expect value token
         return self._parse_scalar(extra_stop_chars=extra_stop_chars)
 
-    def _parse_inline_sequence(self) -> T:
-        self._add_token(t=T.SEQUENCE_START, value="[")
-        self._nc()
-        extra_scalar_stops = {",", "]"}
-        while t := self._parse_next_token(extra_stop_chars=extra_scalar_stops):
-            if t == T.SEQUENCE_END:
-                break
-            if t == T.EOF or self.position >= self.input_length:
-                self._raise_error("Inline sequence not closed.")
-            pass
-        return T.NO_TOKEN
-
-    def _parse_inline_mapping(self) -> T:
-        # Take the first { character
-        self._add_token(t=T.MAPPING_START, value="{")
-        self._nc()
-        extra_scalar_stops = {",", "}"}
-
-        while t := self._parse_next_token(extra_stop_chars=extra_scalar_stops):
-            if t == T.MAPPING_END:
-                break
-            if t == T.EOF or self.position >= self.input_length:
-                self._raise_error("Inline mapping not closed.")
-            pass
-        return T.NO_TOKEN
-
-    def _parse_multiline(self) -> T:
+    def _parse_flow_style(self, mapping: bool) -> Token:
         s = self._snapshot
-        multiline_type = T.MULTILINE_PIPE if self.c == "|" else T.MULTILINE_ARROW
+        if mapping:
+            self._add_token(t=T.MAPPING_START, value="{")
+            extra_scalar_stops = {",", "}"}
+            stop_token_type = T.MAPPING_END
+        else:
+            self._add_token(t=T.SEQUENCE_START, value="[")
+            extra_scalar_stops = {",", "]"}
+            stop_token_type = T.SEQUENCE_END
+        self._nc()
+
+        while t := self._parse_next_token(extra_stop_chars=extra_scalar_stops):
+            self.tokens.append(t)
+            if t.t == stop_token_type:
+                break
+            if t.t == T.EOF or self.position >= self.input_length:
+                flow_type = "mapping" if mapping else "sequence"
+                self._raise_error(f"Inline {flow_type} not closed.", pos=s.position)
+        return self._parse_next_token(extra_stop_chars=extra_scalar_stops)
+
+    def _parse_multiline(self) -> Token:
+        s = self._snapshot
+        multiline_type = (
+            T.MULTILINE_PIPE
+            if self.c == "|"
+            else T.MULTILINE_ARROW
+            if self.c == ">"
+            else T.SCALAR
+        )
         # Skip the arrow `>`
         self._nc()
         # Parse until we get the first newline.
@@ -232,16 +233,18 @@ class Lexer:
                 post_multiline_newlines = 0  # Reset since we found more content
                 value += self.c
                 self._nc()
+
         self._add_token(t=multiline_type, value=value, s=s)
+
         for _ in range(post_multiline_newlines - 1):
             self._add_token(t=T.EMPTY_LINE, value="")
         if indent >= 0 and indent < self.indent_stack[-1]:
             # If the most recent indent we fetched is less than indent stack
             # Then add as a dedent.
             self._add_dedents(indent=indent)
-        return multiline_type
+        return self._parse_next_token()
 
-    def _parse_merge_key(self) -> T:
+    def _parse_merge_key(self) -> Token:
         s = self._snapshot
 
         # After the initial `<` we expect the sequence below.
@@ -250,9 +253,9 @@ class Lexer:
             if self.c != c:
                 self._raise_error("Found invalid merge key.", pos=self.position)
             self._nc()
-        return self._add_token(t=T.KEY, value="<<", s=s)
+        return self._build_token(t=T.KEY, value="<<", s=s)
 
-    def _parse_comment(self) -> T:
+    def _parse_comment(self) -> Token:
         s = self._snapshot
         # Skip the hashtag
         self._nc()
@@ -262,13 +265,13 @@ class Lexer:
             if self.position >= self.input_length:
                 break
             char = self.c
-        return self._add_token(
+        return self._build_token(
             t=T.COMMENT,
             value=self.input[s.position : self.position],
             s=s,
         )
 
-    def _parse_quoted_scalar(self) -> T:
+    def _parse_quoted_scalar(self) -> Token:
         start = self._snapshot
         quote_char = self.c
         self._nc()
@@ -283,7 +286,7 @@ class Lexer:
                     msg="Quoted string broken by newline.", pos=start.position
                 )
         self._nc()  # Consume the final quote
-        return self._add_token(
+        return self._build_token(
             t=T.SCALAR,
             value=self.input[start.position + 1 : self.position - 1],
             s=start,
@@ -304,23 +307,23 @@ class Lexer:
             char = self.c
         return self.input[start.position + 1 : self.position]
 
-    def _parse_alias(self, extra_stop_chars: set) -> T:
+    def _parse_alias(self, extra_stop_chars: set) -> Token:
         s = self._snapshot
-        return self._add_token(
+        return self._build_token(
             t=T.ALIAS,
             value=self._anchor_or_alias_name(extra_stop_chars=extra_stop_chars),
             s=s,
         )
 
-    def _parse_anchor(self, extra_stop_chars: set) -> T:
+    def _parse_anchor(self, extra_stop_chars: set) -> Token:
         s = self._snapshot
-        return self._add_token(
+        return self._build_token(
             t=T.ANCHOR,
             value=self._anchor_or_alias_name(extra_stop_chars=extra_stop_chars),
             s=s,
         )
 
-    def _parse_dash(self) -> T:
+    def _parse_dash(self) -> Token:
         # Start with char, since current char is '-'
         self._nc()
         s = self._snapshot
@@ -330,7 +333,7 @@ class Lexer:
             self._nc()
             if self.c == "-":
                 self._nc()
-                return self._add_token(t=T.DOCUMENT_START, value="---", s=s)
+                return self._build_token(t=T.DOCUMENT_START, value="---", s=s)
             else:
                 self._raise_error(f"Expected separator `---` but found `--{self.c}`")
 
@@ -340,7 +343,7 @@ class Lexer:
                 f"Expected blankspace after dash but found `{self.c}`", pos=s.position
             )
         self._nc()
-        return self._add_token(t=T.DASH, value="-", s=s)
+        return self._build_token(t=T.DASH, value="-", s=s)
 
     def _check_eof(self) -> bool:
         return self.position == self.input_length
@@ -361,27 +364,27 @@ class Lexer:
             self._add_token(t=T.DEDENT, value="")
             self.indent_stack.pop()
 
-    def _parse_dents(self) -> T:
+    def _parse_dents(self) -> Token:
         s = self._snapshot
         self._nl()
         if self._check_eof():
-            return self._add_token(t=T.EOF, value="")
+            return self._build_token(t=T.EOF, value="")
         # If the immediate token is another newline, return newline token
         if self.c == "\n":
-            return self._add_token(t=T.EMPTY_LINE, value="\n", s=s)
+            return self._build_token(t=T.EMPTY_LINE, value="\n", s=s)
 
         # Otherwise parse blank spaces until we find something else
         indent = self._count_spaces()
         if indent == -1:
-            return self._add_token(t=T.EOF, value="")
+            return self._build_token(t=T.EOF, value="")
 
         if indent > self.indent_stack[-1]:
             self.indent_stack.append(indent)
-            return self._add_token(t=T.INDENT, value="")
+            return self._build_token(t=T.INDENT, value="")
         elif indent < self.indent_stack[-1]:
             # Add potential dedents
             self._add_dedents(indent=indent)
-        return T.NO_TOKEN
+        return self._parse_next_token()
 
     def _nc(self) -> None:
         """Move to next column position."""
@@ -402,16 +405,12 @@ class Lexer:
             else:
                 break
 
-    def _add_token(
-        self,
-        t: T,
-        value: str,
-        s: Snapshot | None = None,
-        quote_char: str | None = None,
-    ) -> T:
+    def _build_token(
+        self, t: T, value: str, s: Snapshot | None = None, quote_char: str | None = None
+    ) -> Token:
         if not s:
             s = self._snapshot
-        token = Token(
+        return Token(
             t=t,
             value=value,
             line=s.line,
@@ -420,8 +419,11 @@ class Lexer:
             end=s.position + len(value),
             quote_char=quote_char,
         )
-        self.tokens.append(token)
-        return t
+
+    def _add_token(self, t: T, value: str, s: Snapshot | None = None) -> None:
+        if not s:
+            s = self._snapshot
+        self.tokens.append(self._build_token(t=t, value=value, s=s))
 
     @property
     def _snapshot(self) -> Snapshot:
@@ -431,7 +433,7 @@ class Lexer:
             line=self.line,
         )
 
-    def _parse_scalar(self, extra_stop_chars: set) -> T:
+    def _parse_scalar(self, extra_stop_chars: set) -> Token:
         """Loop through text until we find the end of the value."""
         s = self._snapshot
         stop_characters = {"\n", "#", "&"}.union(extra_stop_chars)
@@ -442,7 +444,7 @@ class Lexer:
                 break
             elif char == ":":
                 self._nc()
-                return self._add_token(
+                return self._build_token(
                     t=T.KEY,
                     value=self.input[s.position : self.position - 1],
                     s=s,
@@ -453,7 +455,7 @@ class Lexer:
         if self.position == s.position:
             self._raise_error("Found unparsable section", pos=s.position)
 
-        return self._add_token(
+        return self._build_token(
             t=T.SCALAR, value=self.input[s.position : self.position], s=s
         )
 

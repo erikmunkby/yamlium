@@ -4,9 +4,15 @@ from yamlium.exceptions import ParsingError
 from yamlium.lexer import Lexer, T
 
 
+def comp(s: str, expected: list[T], /) -> None:
+    """Quick lexer comparison."""
+    s = s.strip() + "\n"
+    assert [t.t for t in Lexer(s).build_tokens()] == expected
+
+
 def test_simple_key_value():
     """Test lexing of simple key-value pairs."""
-    lexer = Lexer(input="name: bob")
+    lexer = Lexer("name: bob")
     tokens = lexer.build_tokens()
 
     assert len(tokens) == 3  # KEY, STRING, EOF
@@ -23,7 +29,7 @@ person:
     age: 30
     """
 
-    lexer = Lexer(input=yaml_input)
+    lexer = Lexer(yaml_input)
     tokens = lexer.build_tokens()
 
     # Expected token sequence: NEW_LINE, KEY, NEW_LINE, INDENT, KEY, STRING, NEW_LINE, KEY, STRING, DEDENT, EOF
@@ -49,7 +55,7 @@ items:
     - second
     """
 
-    lexer = Lexer(input=yaml_input)
+    lexer = Lexer(yaml_input)
     tokens = lexer.build_tokens()
 
     # Expected: NEW_LINE, KEY, NEW_LINE, INDENT, DASH, STRING, NEW_LINE, DASH, STRING, DEDENT, EOF
@@ -80,7 +86,7 @@ users:
             - user
     """
 
-    lexer = Lexer(input=yaml_input)
+    lexer = Lexer(yaml_input)
     tokens = lexer.build_tokens()
 
     # Verify key structural elements
@@ -109,7 +115,7 @@ null_value: null
 blank_value: 
     """
 
-    lexer = Lexer(input=yaml_input)
+    lexer = Lexer(yaml_input)
     tokens = lexer.build_tokens()
 
     # Verify we can handle empty values correctly
@@ -130,7 +136,7 @@ key2:
     nested: value2
 """
 
-    lexer = Lexer(input=yaml_input)
+    lexer = Lexer(yaml_input)
     tokens = lexer.build_tokens()
 
     # Find the 'nested' key token
@@ -146,7 +152,7 @@ def test_comment():
 key1: value1 # some comment
 
 """
-    lexer = Lexer(input=yaml_input)
+    lexer = Lexer(yaml_input)
     tokens = lexer.build_tokens()
     assert [t.t for t in tokens] == [T.KEY, T.SCALAR, T.COMMENT, T.EMPTY_LINE, T.EOF]
     assert tokens[2].value == "# some comment"
@@ -155,7 +161,7 @@ key1: value1 # some comment
 def test_quote_not_ending():
     yaml_input = """
 key1: " """
-    lexer = Lexer(input=yaml_input)
+    lexer = Lexer(yaml_input)
     with pytest.raises(ParsingError):
         lexer.build_tokens()
 
@@ -164,7 +170,7 @@ def test_broken_quote_newline():
     yaml_input = """
 key1: " 
 """
-    lexer = Lexer(input=yaml_input)
+    lexer = Lexer(yaml_input)
     with pytest.raises(ParsingError):
         lexer.build_tokens()
 
@@ -180,5 +186,72 @@ key1: "my value"
 key1: "&#-XXX"
 """
     for y in [y1, y2, y3]:
-        tokens = Lexer(input=y).build_tokens()
+        tokens = Lexer(y).build_tokens()
         assert [t.t for t in tokens] == [T.KEY, T.SCALAR, T.EOF]
+
+
+def test_multiline_pipe():
+    y1 = """
+key1: |-
+  line1
+  line2
+key2: normal scalar
+"""
+    y2 = """
+key1: |-
+  line1
+  line2
+key2: normal scalar
+"""
+    for y in [y1, y2]:
+        comp(y, [T.KEY, T.MULTILINE_PIPE, T.KEY, T.SCALAR, T.EOF])
+
+
+def test_multiline_string():
+    yaml_input = """
+key: simple multiline
+  string without pipe
+"""
+    tokens = Lexer(yaml_input).build_tokens()
+    expected_types = [T.KEY, T.SCALAR, T.EOF]
+    assert [t.t for t in tokens] == expected_types
+
+
+def test_flow_style_mapping():
+    y1 = """
+flow_map: { a: 1, b: 2 }
+"""
+    comp(
+        y1,
+        [
+            T.KEY,
+            T.MAPPING_START,
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,
+            T.KEY,
+            T.SCALAR,
+            T.MAPPING_END,
+            T.EOF,
+        ],
+    )
+
+
+def test_flow_style_sequence():
+    y1 = """
+flow_map: [ a, 3, c]
+"""
+    comp(
+        y1,
+        [
+            T.KEY,
+            T.SEQUENCE_START,
+            T.SCALAR,
+            T.COMMA,
+            T.SCALAR,
+            T.COMMA,
+            T.SCALAR,
+            T.SEQUENCE_END,
+            T.EOF,
+        ],
+    )
