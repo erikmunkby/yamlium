@@ -129,6 +129,7 @@ class Parser:
                 _value=_parse_scalar_type(val),
                 _is_indented=indented,
                 _original_value=val,
+                _quote_char=t.quote_char,
             )
         )
 

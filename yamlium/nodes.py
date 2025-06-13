@@ -528,11 +528,15 @@ class Scalar(Node):
         _type: Literal[T.MULTILINE_ARROW, T.MULTILINE_PIPE, T.SCALAR] = T.SCALAR,
         _is_indented: bool = False,
         _original_value: str = "",
+        _quote_char: str | None = None,
     ) -> None:
         super().__init__(_value, _line, _indent)
         self._type = _type
         self._is_indented = _is_indented
+        # Original value is used for the various null representations:
+        # null, ~, empty space
         self._original_value = _original_value
+        self._quote_char = _quote_char
 
     def __str__(self) -> str:
         return str(self._value)
@@ -544,8 +548,6 @@ class Scalar(Node):
             The Python value of this scalar.
         """
         if self._type == T.SCALAR:
-            if isinstance(self._value, str) and self._value[0] in {'"', "'"}:
-                return self._value[1:-1]
             return self._value
         if self._type == T.MULTILINE_PIPE:
             return self._value
@@ -558,6 +560,8 @@ class Scalar(Node):
                 val = "true" if self._value else "false"
             elif self._value is None:
                 val = self._original_value
+            elif self._quote_char:
+                val = f"{self._quote_char}{self._value}{self._quote_char}"
             else:
                 val = str(self._value)
         else:

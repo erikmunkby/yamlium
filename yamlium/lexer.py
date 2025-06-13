@@ -48,6 +48,7 @@ class Token:
     column: int
     start: int
     end: int
+    quote_char: str | None = None
 
 
 @dataclass
@@ -269,10 +270,10 @@ class Lexer:
 
     def _parse_quoted_scalar(self) -> T:
         start = self._snapshot
-        quoting_character = self.c
+        quote_char = self.c
         self._nc()
         char = self.c
-        while char != quoting_character:
+        while char != quote_char:
             self._nc()
             if self.position >= self.input_length:
                 self._raise_error(msg="Expected end of quote.", pos=start.position)
@@ -283,7 +284,10 @@ class Lexer:
                 )
         self._nc()  # Consume the final quote
         return self._add_token(
-            t=T.SCALAR, value=self.input[start.position : self.position], s=start
+            t=T.SCALAR,
+            value=self.input[start.position + 1 : self.position - 1],
+            s=start,
+            quote_char=quote_char,
         )
 
     def _anchor_or_alias_name(self, extra_stop_chars: set) -> str:
@@ -398,7 +402,13 @@ class Lexer:
             else:
                 break
 
-    def _add_token(self, t: T, value: str, s: Snapshot | None = None) -> T:
+    def _add_token(
+        self,
+        t: T,
+        value: str,
+        s: Snapshot | None = None,
+        quote_char: str | None = None,
+    ) -> T:
         if not s:
             s = self._snapshot
         token = Token(
@@ -408,6 +418,7 @@ class Lexer:
             column=s.column,
             start=s.position,
             end=s.position + len(value),
+            quote_char=quote_char,
         )
         self.tokens.append(token)
         return t

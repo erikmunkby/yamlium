@@ -409,3 +409,12 @@ merged:
   <<: [*base, *override]
   additional: value
 """)
+
+
+def test_quoted_strings():
+    """Test YAML merge keys with multiple sources"""
+    comp("""
+key1: 'string1'
+key2: "string2"
+key3: string3
+""")
