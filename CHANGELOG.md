@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/erikmunkby/yamlium/compare/v0.1.4...v0.1.5) (2025-06-13)
+
+
+### Bug Fixes
+
+* remove quotes from string values ([3ff2cd9](https://github.com/erikmunkby/yamlium/commit/3ff2cd9390aa2f77adc627cae109722d0643990e))
+
 ## [0.1.4](https://github.com/erikmunkby/yamlium/compare/v0.1.3...v0.1.4) (2025-06-08)
 
 
