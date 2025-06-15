@@ -565,18 +565,19 @@ class Scalar(Node):
             else:
                 val = str(self._value)
         else:
-            prefix = "|" if self._type == T.MULTILINE_PIPE else ">"
-            i_ = _indent(i)
-            val = (
-                prefix
-                + "\n"
-                + "\n".join(
-                    [
-                        (i_ + r) if r else ""
-                        for r in self._value.split("\n")  # type: ignore
-                    ]
+            val = "|" if self._type == T.MULTILINE_PIPE else ">"
+            if self._value:
+                i_ = _indent(i)
+                val = (
+                    val
+                    + "\n"
+                    + "\n".join(
+                        [
+                            (i_ + r) if r else ""
+                            for r in self._value.split("\n")  # type: ignore
+                        ]
+                    )
                 )
-            )
         return self._enrich_yaml(val)
 
     if TYPE_CHECKING:

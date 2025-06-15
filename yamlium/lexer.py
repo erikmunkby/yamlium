@@ -185,15 +185,13 @@ class Lexer:
         )
         # If it is a normal scalar
         if multiline_type == T.SCALAR:
+            # Specific checks if its not pipe or arrow.
+            # We might not be dealing with a scalar, but rather key, anchor, alias, comment etc.
             stop_characters = {"#", "&"}.union(extra_stop_chars)
             while self.position < self.input_length:
                 char = self.c
                 if char == "\n":
-                    # Take a snapshot incase next step is an dedentation
-                    pre_newline_snapshot = self._snapshot
                     # Stop and expect multiline scalar.
-                    # The code will continue past the next else segment
-                    self._nl()
                     break
                 elif char == ":":
                     self._nc()
@@ -217,40 +215,12 @@ class Lexer:
                 )
 
         else:
-            # Parse until we get the first newline.
-            # The might be spaces after multiline initiator like:
-            # my_key: |<space>
-            #   multiline
-            #   string
             # TODO: Add functionality for newline preserve/chomp: |- |+ >- >+
-            while True:
-                if self.c == "\n":
-                    self._nl()
-                    break
-                self._nc()
-
-        # Parse the first indent to get the indent value of the multiline string
-        ml_indent = self._count_spaces()
-        # If we do not encounter an indentation, it is not a multiline string
-        if ml_indent <= 0 or ml_indent <= self.indent_stack[-1]:
-            if multiline_type != T.SCALAR:
-                self._raise_error("Multiline string requires indentation.")
-
-            # Otherwise add token, add dedents and then continue
-            self._add_token(
-                t=T.SCALAR,
-                value=self.input[s.position : pre_newline_snapshot.position],
-                s=s,
-            )
-            if ml_indent == -1:
-                return self._build_token(t=T.EOF, value="")
-            if len(self.indent_stack) > 0:
-                self._add_dedents(indent=ml_indent)
-            return self._parse_next_token(extra_stop_chars=extra_stop_chars)
+            pass
 
         post_multiline_newlines = 0
-        # Parse multiline
-        value, indent = "", 0
+        indent = 0
+        multiline_indentation_level = None
         while self.position < self.input_length:
             if multiline_type == T.SCALAR and self.c == ":":
                 self._raise_error("Found implicit key after scalar.")
@@ -261,33 +231,38 @@ class Lexer:
                 #
                 # key2: value
                 post_multiline_newlines += 1
-                value += "\n"
                 self._nl()  # Skip the newline
                 indent = self._count_spaces()
-                if indent == -1:
-                    # Indent -1 signals EOF
+                if indent == 0:
+                    if self.c == "\n":
+                        # We have a simple empty line
+                        continue
+                    else:
+                        break
+                if indent == -1 or indent <= self.indent_stack[-1]:
                     break
-                if self.c == "\n":
-                    # We have an immediate newline extension. E.g.
-                    # key: |
-                    #   line1
-                    #
-                    #   line2
-                    continue
-                if indent < ml_indent:
-                    break
-                if indent > ml_indent:
-                    self._raise_error(msg="Irregular multiline string indentation.")
+                # Once we found the first multiline indentation level, register it
+                if not multiline_indentation_level:
+                    multiline_indentation_level = indent
+                # Otherwise compare against the multiline indentation level
+                else:
+                    if indent > multiline_indentation_level:
+                        self._raise_error(msg="Irregular multiline string indentation.")
+                    if indent < multiline_indentation_level:
+                        break
             else:
                 post_multiline_newlines = 0  # Reset since we found more content
-                value += self.c
                 self._nc()
 
+        value = self.input[s.position : self.position]
+        if multiline_type != T.SCALAR:
+            split = value.strip().split("\n")
+            value = "\n".join([x.strip() for x in split[1:]])
         self._add_token(t=multiline_type, value=value, s=s)
 
         for _ in range(post_multiline_newlines - 1):
             self._add_token(t=T.EMPTY_LINE, value="")
-        if indent >= 0 and indent < self.indent_stack[-1]:
+        if indent != -1 and indent < self.indent_stack[-1]:
             # If the most recent indent we fetched is less than indent stack
             # Then add as a dedent.
             self._add_dedents(indent=indent)
