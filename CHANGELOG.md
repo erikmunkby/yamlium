@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.6](https://github.com/erikmunkby/yamlium/compare/v0.1.5...v0.1.6) (2025-06-15)
+
+
+### Bug Fixes
+
+* better multiline scalar support ([b55f39e](https://github.com/erikmunkby/yamlium/commit/b55f39e172aa3d95008a46859e50783dffb18372))
+* dashes now count as indentations ([4196769](https://github.com/erikmunkby/yamlium/commit/41967694d70b75f342ac50d308f9d8ab521fefe2))
+* make lexer recursive ([4cd94ac](https://github.com/erikmunkby/yamlium/commit/4cd94ace5af9406c481c4d997b39e2e5d3bdf35e))
+
 ## [0.1.5](https://github.com/erikmunkby/yamlium/compare/v0.1.4...v0.1.5) (2025-06-13)
 
 
