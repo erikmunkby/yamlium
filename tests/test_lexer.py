@@ -526,3 +526,11 @@ key1:
             T.EOF,
         ],
     )
+
+
+def test_quoted_key():
+    yml = """
+normal_key:
+  "quoted_key": scalar
+"""
+    comp(yml, [T.KEY, T.INDENT, T.KEY, T.SCALAR, T.EOF])
