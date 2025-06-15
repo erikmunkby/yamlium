@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/erikmunkby/yamlium/compare/v0.1.6...v0.1.7) (2025-06-15)
+
+
+### Bug Fixes
+
+* allow negative scalars in sequence ([6eecdbf](https://github.com/erikmunkby/yamlium/commit/6eecdbf906462d36c52238751edbc0238d8f3d87))
+
 ## [0.1.6](https://github.com/erikmunkby/yamlium/compare/v0.1.5...v0.1.6) (2025-06-15)
 
 
