@@ -317,6 +317,13 @@ class Lexer:
                     msg="Quoted string broken by newline.", pos=start.position
                 )
         self._nc()  # Consume the final quote
+        # It might be a quoted key
+        if self.c == ":":
+            self._nc()
+            return self._build_token(
+                t=T.KEY, value=self.input[start.position : self.position - 1], s=start
+            )
+
         return self._build_token(
             t=T.SCALAR,
             value=self.input[start.position + 1 : self.position - 1],
