@@ -267,3 +267,169 @@ flow_map: [ a, 3, c]
             T.EOF,
         ],
     )
+
+
+def test_anchors_and_aliases():
+    """Test lexing of YAML anchors and aliases."""
+    yaml_input = """
+base: &base
+  name: base
+derived: *base
+"""
+    comp(
+        yaml_input,
+        [T.KEY, T.ANCHOR, T.INDENT, T.KEY, T.SCALAR, T.DEDENT, T.KEY, T.ALIAS, T.EOF],
+    )
+
+
+def test_merge_keys():
+    """Test lexing of YAML merge keys."""
+    yaml_input = """
+base: &base
+    name: base
+derived:
+    <<: *base
+    extra: value
+"""
+    comp(
+        yaml_input,
+        [
+            T.KEY,
+            T.ANCHOR,
+            T.INDENT,
+            T.KEY,
+            T.SCALAR,
+            T.DEDENT,
+            T.KEY,
+            T.INDENT,
+            T.KEY,
+            T.ALIAS,
+            T.KEY,
+            T.SCALAR,
+            T.EOF,
+        ],
+    )
+
+
+def test_nested_flow_style():
+    """Test lexing of nested flow style structures."""
+    yaml_input = """
+complex: { a: [1, 2], b: { x: 1, y: 2 } }
+"""
+    comp(
+        yaml_input,
+        [
+            T.KEY,
+            T.MAPPING_START,
+            T.KEY,
+            T.SEQUENCE_START,
+            T.SCALAR,
+            T.COMMA,
+            T.SCALAR,
+            T.SEQUENCE_END,
+            T.COMMA,
+            T.KEY,
+            T.MAPPING_START,
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,
+            T.KEY,
+            T.SCALAR,
+            T.MAPPING_END,
+            T.MAPPING_END,
+            T.EOF,
+        ],
+    )
+
+
+def test_block_scalar_modifiers():
+    """Test lexing of block scalar modifiers."""
+    yaml_input = """
+literal: |
+    This is a literal
+    block scalar
+folded: >
+    This is a folded
+    block scalar
+"""
+    comp(yaml_input, [T.KEY, T.MULTILINE_PIPE, T.KEY, T.MULTILINE_ARROW, T.EOF])
+
+
+def test_document_separators():
+    """Test lexing of YAML document separators."""
+    yaml_input = """
+---
+key1: value1
+---
+key2: value2
+"""
+    comp(
+        yaml_input,
+        [
+            T.DOCUMENT_START,
+            T.KEY,
+            T.SCALAR,
+            T.DOCUMENT_START,
+            T.KEY,
+            T.SCALAR,
+            T.EOF,
+        ],
+    )
+
+
+def test_multiple_documents():
+    """Test lexing of multiple YAML documents."""
+    yaml_input = """
+---
+doc1: value1
+---
+doc2: value2
+"""
+    comp(
+        yaml_input,
+        [T.DOCUMENT_START, T.KEY, T.SCALAR, T.DOCUMENT_START, T.KEY, T.SCALAR, T.EOF],
+    )
+
+
+def test_complex_anchors():
+    """Test lexing of complex anchor and alias structures."""
+    yaml_input = """
+base: &base
+    name: base
+    items: &items
+        - one
+        - two
+derived:
+    <<: *base
+    items: *items
+"""
+    comp(
+        yaml_input,
+        [
+            T.KEY,
+            T.ANCHOR,
+            T.INDENT,
+            T.KEY,
+            T.SCALAR,
+            T.KEY,
+            T.ANCHOR,
+            T.INDENT,
+            T.DASH,
+            T.INDENT,
+            T.SCALAR,
+            T.DEDENT,
+            T.DASH,
+            T.INDENT,
+            T.SCALAR,
+            T.DEDENT,
+            T.DEDENT,
+            T.DEDENT,
+            T.KEY,
+            T.INDENT,
+            T.KEY,
+            T.ALIAS,
+            T.KEY,
+            T.ALIAS,
+            T.EOF,
+        ],
+    )
