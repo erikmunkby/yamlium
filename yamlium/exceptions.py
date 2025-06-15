@@ -12,7 +12,7 @@ def raise_parsing_error(input_str: str, pos: int, msg: str) -> NoReturn:
     # Figure out where the error is based on pos
     for i, line in enumerate(input_split):
         line_pos_sum += len(line) + 1  # Add one since newlines are gone from split
-        if line_pos_sum >= pos:
+        if line_pos_sum >= pos + 1:  # Add one for a final newline split
             faulty_line_index = i
             break
     line_pos = pos + len(line) - line_pos_sum
