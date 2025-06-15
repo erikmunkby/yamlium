@@ -132,7 +132,7 @@ class Lexer:
         if char == "<":
             return self._parse_merge_key()
         if char in [">", "|"]:
-            return self._parse_multiline()
+            return self._parse_scalar()
         if char == "{":
             return self._parse_flow_style(mapping=True)
         if char == "[":
@@ -174,7 +174,7 @@ class Lexer:
                 self._raise_error(f"Inline {flow_type} not closed.", pos=s.position)
         return self._parse_next_token(extra_stop_chars=extra_scalar_stops)
 
-    def _parse_multiline(self) -> Token:
+    def _parse_scalar(self, extra_stop_chars: set = set()) -> Token:
         s = self._snapshot
         multiline_type = (
             T.MULTILINE_PIPE
@@ -183,28 +183,77 @@ class Lexer:
             if self.c == ">"
             else T.SCALAR
         )
-        # Skip the arrow `>`
-        self._nc()
-        # Parse until we get the first newline.
-        # The might be spaces after multiline initiator like:
-        # my_key: |<space>
-        #   multiline
-        #   string
-        # TODO: Add functionality for newline preserve/chomp: |- |+ >- >+
-        while True:
-            if self.c == "\n":
-                self._nl()
-                break
-            self._nc()
+        # If it is a normal scalar
+        if multiline_type == T.SCALAR:
+            stop_characters = {"#", "&"}.union(extra_stop_chars)
+            while self.position < self.input_length:
+                char = self.c
+                if char == "\n":
+                    # Take a snapshot incase next step is an dedentation
+                    pre_newline_snapshot = self._snapshot
+                    # Stop and expect multiline scalar.
+                    # The code will continue past the next else segment
+                    self._nl()
+                    break
+                elif char == ":":
+                    self._nc()
+                    return self._build_token(
+                        t=T.KEY,
+                        value=self.input[s.position : self.position - 1],
+                        s=s,
+                    )
+                elif char in stop_characters:
+                    return self._build_token(
+                        t=T.SCALAR, value=self.input[s.position : self.position], s=s
+                    )
+                else:
+                    self._nc()
+
+            if self.position == self.input_length:
+                # This scenario happens when we do not end with a newline
+                # And final character symbol is a normal scalar
+                return self._build_token(
+                    t=T.SCALAR, value=self.input[s.position : self.position], s=s
+                )
+
+        else:
+            # Parse until we get the first newline.
+            # The might be spaces after multiline initiator like:
+            # my_key: |<space>
+            #   multiline
+            #   string
+            # TODO: Add functionality for newline preserve/chomp: |- |+ >- >+
+            while True:
+                if self.c == "\n":
+                    self._nl()
+                    break
+                self._nc()
+
         # Parse the first indent to get the indent value of the multiline string
         ml_indent = self._count_spaces()
-        if ml_indent <= self.indent_stack[-1]:
-            self._raise_error("Multiline string requires indentation.")
+        # If we do not encounter an indentation, it is not a multiline string
+        if ml_indent <= 0 or ml_indent <= self.indent_stack[-1]:
+            if multiline_type != T.SCALAR:
+                self._raise_error("Multiline string requires indentation.")
+
+            # Otherwise add token, add dedents and then continue
+            self._add_token(
+                t=T.SCALAR,
+                value=self.input[s.position : pre_newline_snapshot.position],
+                s=s,
+            )
+            if ml_indent == -1:
+                return self._build_token(t=T.EOF, value="")
+            if len(self.indent_stack) > 0:
+                self._add_dedents(indent=ml_indent)
+            return self._parse_next_token(extra_stop_chars=extra_stop_chars)
 
         post_multiline_newlines = 0
         # Parse multiline
         value, indent = "", 0
         while self.position < self.input_length:
+            if multiline_type == T.SCALAR and self.c == ":":
+                self._raise_error("Found implicit key after scalar.")
             if self.c == "\n":
                 # This might be a post multiline newline, e.g.
                 # key: |
@@ -343,7 +392,8 @@ class Lexer:
                 f"Expected blankspace after dash but found `{self.c}`", pos=s.position
             )
         self._nc()
-        return self._build_token(t=T.DASH, value="-", s=s)
+        self._add_token(t=T.DASH, value="-", s=s)
+        return self._maybe_add_dents(indent=self.column)
 
     def _check_eof(self) -> bool:
         return self.position == self.input_length
@@ -364,6 +414,17 @@ class Lexer:
             self._add_token(t=T.DEDENT, value="")
             self.indent_stack.pop()
 
+    def _maybe_add_dents(self, indent: int) -> Token:
+        if indent == -1:
+            return self._build_token(t=T.EOF, value="")
+        if indent > self.indent_stack[-1]:
+            self.indent_stack.append(indent)
+            return self._build_token(t=T.INDENT, value="")
+        elif indent < self.indent_stack[-1]:
+            # Add potential dedents
+            self._add_dedents(indent=indent)
+        return self._parse_next_token()
+
     def _parse_dents(self) -> Token:
         s = self._snapshot
         self._nl()
@@ -375,16 +436,7 @@ class Lexer:
 
         # Otherwise parse blank spaces until we find something else
         indent = self._count_spaces()
-        if indent == -1:
-            return self._build_token(t=T.EOF, value="")
-
-        if indent > self.indent_stack[-1]:
-            self.indent_stack.append(indent)
-            return self._build_token(t=T.INDENT, value="")
-        elif indent < self.indent_stack[-1]:
-            # Add potential dedents
-            self._add_dedents(indent=indent)
-        return self._parse_next_token()
+        return self._maybe_add_dents(indent=indent)
 
     def _nc(self) -> None:
         """Move to next column position."""
@@ -432,37 +484,3 @@ class Lexer:
             column=self.column,
             line=self.line,
         )
-
-    def _parse_scalar(self, extra_stop_chars: set) -> Token:
-        """Loop through text until we find the end of the value."""
-        s = self._snapshot
-        stop_characters = {"\n", "#", "&"}.union(extra_stop_chars)
-        # While we have text left to find
-        while self.position < self.input_length:
-            char = self.c
-            if char in stop_characters:
-                break
-            elif char == ":":
-                self._nc()
-                return self._build_token(
-                    t=T.KEY,
-                    value=self.input[s.position : self.position - 1],
-                    s=s,
-                )
-            else:
-                self._nc()
-
-        if self.position == s.position:
-            self._raise_error("Found unparsable section", pos=s.position)
-
-        return self._build_token(
-            t=T.SCALAR, value=self.input[s.position : self.position], s=s
-        )
-
-
-if __name__ == "__main__":
-    Lexer(
-        """
-hey: {a: b
-""".strip()
-    ).build_tokens()

@@ -63,8 +63,11 @@ items:
         T.KEY,
         T.INDENT,
         T.DASH,
+        T.INDENT,
         T.SCALAR,
+        T.DEDENT,
         T.DASH,
+        T.INDENT,
         T.SCALAR,
         T.EOF,
     ]
@@ -77,13 +80,13 @@ def test_complex_structure():
     """Test lexing of a more complex YAML structure with nested sequences and mappings."""
     yaml_input = """
 users:
-    - name: alice
+  - name: alice
+    roles:
+      - admin
+      - user
+  - name:
       roles:
-        - admin
         - user
-    - name:
-        roles:
-            - user
     """
 
     lexer = Lexer(yaml_input)
@@ -98,11 +101,11 @@ users:
     # Verify we have the correct number of INDENT/DEDENT pairs
     n_indent = token_types.count(T.INDENT)
     n_dedent = token_types.count(T.DEDENT)
-    assert token_types.count(T.INDENT) == 5, (
-        f"Expected 5 INDENT tokens found {n_indent}"
+    assert token_types.count(T.INDENT) == 9, (
+        f"Expected 9 INDENT tokens found {n_indent}"
     )
-    assert token_types.count(T.DEDENT) == 2, (
-        f"Expected 2 DEDENT tokens found {n_dedent}"
+    assert token_types.count(T.DEDENT) == 4, (
+        f"Expected 4 DEDENT tokens found {n_dedent}"
     )
     assert token_types.count(T.KEY) == 5
 
@@ -215,6 +218,15 @@ key: simple multiline
     tokens = Lexer(yaml_input).build_tokens()
     expected_types = [T.KEY, T.SCALAR, T.EOF]
     assert [t.t for t in tokens] == expected_types
+
+
+def test_multiline_string_error():
+    yaml_input = """
+key: simple multiline
+  string illegal key:
+"""
+    with pytest.raises(ParsingError):
+        Lexer(yaml_input).build_tokens()
 
 
 def test_flow_style_mapping():
