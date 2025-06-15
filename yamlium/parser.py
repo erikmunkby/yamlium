@@ -24,7 +24,7 @@ NodeType = TypeVar("NodeType", bound=Node)
 
 _STOP_TOKENS = {T.DOCUMENT_START, T.DOCUMENT_END, T.EOF}
 _MAPPING_STOP_TOKENS = {*_STOP_TOKENS, T.DASH}
-_SEQUENCE_STOP_TOKENS = {*_STOP_TOKENS, T.DEDENT, T.KEY}
+_SEQUENCE_STOP_TOKENS = {*_STOP_TOKENS, T.KEY}
 
 
 def _parse_scalar_type(value: str) -> str | int | bool | float | None:
@@ -285,12 +285,6 @@ class Parser:
                 m[key] = self._parse_value(in_mapping=True)
             elif self._check_special_types(t=t):
                 continue
-            elif t == T.INDENT:
-                self._handle_indent()
-                t = self._peek_token
-                if t.t == T.KEY and t.column == m._column:
-                    key = self._build_key()
-                    m[key] = self._parse_value(in_mapping=True)
             elif t == T.DEDENT:
                 self._handle_dedent()
                 if self.current_indent < start_indent:
@@ -303,12 +297,20 @@ class Parser:
 
     def _parse_sequence(self) -> Sequence:
         s = Sequence(_line=self._last_token.line)
+        start_indent = self.current_indent
         while t := self._token_type:
             if t == T.DASH:
                 self._take_token
+                # Immediate token after dashes will be an indentation
+                if self._token_type == T.INDENT:
+                    self._handle_indent()
                 s.append(self._parse_value())
             elif self._check_special_types(t=t):
                 continue
+            elif t == T.DEDENT:
+                self._handle_dedent()
+                if self.current_indent < start_indent:
+                    break
             elif t in _SEQUENCE_STOP_TOKENS:
                 break
             else:

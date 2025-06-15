@@ -433,3 +433,63 @@ derived:
             T.EOF,
         ],
     )
+
+
+def test_newline_detection():
+    yaml_input = """
+key1: value1
+
+key2: value
+"""
+    comp(yaml_input, [T.KEY, T.SCALAR, T.EMPTY_LINE, T.KEY, T.SCALAR, T.EOF])
+
+
+# test multilines with newlines in them
+def test_multilines_with_newlines():
+    y1 = """
+key1: |
+
+  scalar
+"""
+    comp(y1, [T.KEY, T.MULTILINE_PIPE, T.EOF])
+
+    y2 = """
+key1: scalar start
+
+  scalar continue
+"""
+    comp(y2, [T.KEY, T.SCALAR, T.EOF])
+
+
+def test_various_multiline_newlines():
+    yml = """
+key1: |
+
+  line1
+
+  line2
+
+
+key2: scalar
+"""
+    comp(
+        yml,
+        [T.KEY, T.MULTILINE_PIPE, T.EMPTY_LINE, T.EMPTY_LINE, T.KEY, T.SCALAR, T.EOF],
+    )
+
+
+def test_irregular_multiline_indentation():
+    y1 = """
+key1: line1
+  line2
+    line3
+"""
+    y2 = """
+key1: |
+  line2
+    line3
+"""
+    for y in [y1, y2]:
+        with pytest.raises(ParsingError) as e:
+            Lexer(y).build_tokens()
+            assert "Irregular multiline string indentation" in str(e)

@@ -108,7 +108,7 @@ what: *my_anchor #   Applied with simple alias
 
 
 def test_anchor_missing_key():
-    with pytest.raises(ParsingError) as e:
+    with pytest.raises(expected_exception=ParsingError) as e:
         comp("""
 hey: asdf &faulty_anchor
 """)
@@ -116,7 +116,7 @@ hey: asdf &faulty_anchor
 
 
 def test_alias_missing_anchor():
-    with pytest.raises(ParsingError) as e:
+    with pytest.raises(expected_exception=ParsingError) as e:
         comp(
             """
 hey: *missing_anchor
