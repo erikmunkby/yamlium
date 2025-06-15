@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8](https://github.com/erikmunkby/yamlium/compare/v0.1.7...v0.1.8) (2025-06-15)
+
+
+### Bug Fixes
+
+* allow quoted keys ([38a397a](https://github.com/erikmunkby/yamlium/commit/38a397a2e5302e34897751ae33033029d617a84b))
+
 ## [0.1.7](https://github.com/erikmunkby/yamlium/compare/v0.1.6...v0.1.7) (2025-06-15)
 
 
