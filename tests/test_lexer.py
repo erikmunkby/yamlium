@@ -493,3 +493,36 @@ key1: |
         with pytest.raises(ParsingError) as e:
             Lexer(y).build_tokens()
             assert "Irregular multiline string indentation" in str(e)
+
+
+def test_dashes_in_sequence():
+    yml = """
+key1:
+  - normal
+  - 123
+  - -123 # negative number
+  - -"""  # The final is a dash with immediate EOF
+    comp(
+        yml,
+        [
+            T.KEY,
+            T.INDENT,
+            T.DASH,
+            T.INDENT,
+            T.SCALAR,
+            T.DEDENT,
+            T.DASH,
+            T.INDENT,
+            T.SCALAR,
+            T.DEDENT,
+            T.DASH,
+            T.INDENT,
+            T.SCALAR,
+            T.COMMENT,
+            T.DEDENT,
+            T.DASH,
+            T.INDENT,
+            T.SCALAR,
+            T.EOF,
+        ],
+    )

@@ -97,6 +97,13 @@ class Lexer:
         """Get current character."""
         return self.input[self.position]
 
+    @property
+    def c_future(self) -> str | None:
+        """Get character one position in the future."""
+        if self.position + 1 >= self.input_length:
+            return None
+        return self.input[self.position + 1]
+
     def _parse_next_token(self, extra_stop_chars: set = set()) -> Token:
         """Get the next token from the input."""
         # Check if we're at the end of document.
@@ -348,7 +355,9 @@ class Lexer:
         )
 
     def _parse_dash(self) -> Token:
-        # Start with char, since current char is '-'
+        # If the token after is not a dash or blankspace then we're dealing with a scalar
+        if not self.c_future or self.c_future not in {" ", "-"}:
+            return self._parse_scalar()
         self._nc()
         s = self._snapshot
         # Check if next character is also a dash, i.e. document separator
