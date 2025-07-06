@@ -77,10 +77,12 @@ class Lexer:
         self.column = 0
         self.indent_stack: deque[int] = deque([0])
         self.tokens: list[Token] = []
-        while t := self._parse_next_token():
-            self.tokens.append(t)
-            if t.t == T.EOF:
-                break
+        eof = False
+        while not eof:
+            for t in self._parse_next_token():
+                self.tokens.append(t)
+                if t.t == T.EOF:
+                    eof = True
         return self.tokens
 
     def _raise_error(self, msg: str, pos: int | None = None) -> NoReturn:
@@ -104,7 +106,7 @@ class Lexer:
             return None
         return self.input[self.position + 1]
 
-    def _parse_next_token(self, extra_stop_chars: set = set()) -> Token:
+    def _parse_next_token(self, extra_stop_chars: set = set()) -> list[Token]:
         """Get the next token from the input."""
         # Check if we're at the end of document.
         if self.position > self.input_length:
@@ -154,34 +156,42 @@ class Lexer:
             return t
         if char == ",":
             self._nc()
-            self._add_token(t=T.COMMA, value=",")
-            return self._parse_next_token(extra_stop_chars=extra_stop_chars)
+            return self._build_token(t=T.COMMA, value=",")
 
         # If nothing else, expect value token
         return self._parse_scalar(extra_stop_chars=extra_stop_chars)
 
-    def _parse_flow_style(self, mapping: bool) -> Token:
+    def _parse_flow_style(self, mapping: bool) -> list[Token]:
         s = self._snapshot
         if mapping:
-            self._add_token(t=T.MAPPING_START, value="{")
+            tokens = self._build_token(t=T.MAPPING_START, value="{")
             extra_scalar_stops = {",", "}"}
             stop_token_type = T.MAPPING_END
+            start_token_type = T.MAPPING_START
         else:
-            self._add_token(t=T.SEQUENCE_START, value="[")
+            tokens = self._build_token(t=T.SEQUENCE_START, value="[")
             extra_scalar_stops = {",", "]"}
             stop_token_type = T.SEQUENCE_END
+            start_token_type = T.SEQUENCE_START
         self._nc()
 
-        while t := self._parse_next_token(extra_stop_chars=extra_scalar_stops):
-            self.tokens.append(t)
-            if t.t == stop_token_type:
-                break
-            if t.t == T.EOF or self.position >= self.input_length:
-                flow_type = "mapping" if mapping else "sequence"
-                self._raise_error(f"Inline {flow_type} not closed.", pos=s.position)
-        return self._parse_next_token(extra_stop_chars=extra_scalar_stops)
+        stop = False
+        inner = 0  # Sometimes we have flow within flow like: [a, [b, c]]
+        while not stop:
+            for t in self._parse_next_token(extra_stop_chars=extra_scalar_stops):
+                tokens.append(t)
+                if t.t == start_token_type:
+                    inner += 1
+                if t.t == stop_token_type:
+                    inner -= 1
+                    if inner < 0:
+                        stop = True
+                if t.t == T.EOF or self.position >= self.input_length:
+                    flow_type = "mapping" if mapping else "sequence"
+                    self._raise_error(f"Inline {flow_type} not closed.", pos=s.position)
+        return tokens
 
-    def _parse_scalar(self, extra_stop_chars: set = set()) -> Token:
+    def _parse_scalar(self, extra_stop_chars: set = set()) -> list[Token]:
         s = self._snapshot
         multiline_type = (
             T.MULTILINE_PIPE
@@ -209,7 +219,9 @@ class Lexer:
                     )
                 elif char in stop_characters:
                     return self._build_token(
-                        t=T.SCALAR, value=self.input[s.position : self.position], s=s
+                        t=T.SCALAR,
+                        value=self.input[s.position : self.position],
+                        s=s,
                     )
                 else:
                     self._nc()
@@ -265,17 +277,18 @@ class Lexer:
         if multiline_type != T.SCALAR:
             split = value.strip().split("\n")
             value = "\n".join([x.strip() for x in split[1:]])
-        self._add_token(t=multiline_type, value=value, s=s)
+
+        tokens = self._build_token(t=multiline_type, value=value, s=s)
 
         for _ in range(post_multiline_newlines - 1):
-            self._add_token(t=T.EMPTY_LINE, value="")
+            tokens.extend(self._build_token(t=T.EMPTY_LINE, value=""))
         if indent != -1 and indent < self.indent_stack[-1]:
             # If the most recent indent we fetched is less than indent stack
             # Then add as a dedent.
-            self._add_dedents(indent=indent)
-        return self._parse_next_token()
+            tokens.extend(self._build_dedents(indent=indent))
+        return tokens
 
-    def _parse_merge_key(self) -> Token:
+    def _parse_merge_key(self) -> list[Token]:
         s = self._snapshot
 
         # After the initial `<` we expect the sequence below.
@@ -286,7 +299,7 @@ class Lexer:
             self._nc()
         return self._build_token(t=T.KEY, value="<<", s=s)
 
-    def _parse_comment(self) -> Token:
+    def _parse_comment(self) -> list[Token]:
         s = self._snapshot
         # Skip the hashtag
         self._nc()
@@ -302,7 +315,7 @@ class Lexer:
             s=s,
         )
 
-    def _parse_quoted_scalar(self) -> Token:
+    def _parse_quoted_scalar(self) -> list[Token]:
         start = self._snapshot
         quote_char = self.c
         self._nc()
@@ -345,7 +358,7 @@ class Lexer:
             char = self.c
         return self.input[start.position + 1 : self.position]
 
-    def _parse_alias(self, extra_stop_chars: set) -> Token:
+    def _parse_alias(self, extra_stop_chars: set) -> list[Token]:
         s = self._snapshot
         return self._build_token(
             t=T.ALIAS,
@@ -353,7 +366,7 @@ class Lexer:
             s=s,
         )
 
-    def _parse_anchor(self, extra_stop_chars: set) -> Token:
+    def _parse_anchor(self, extra_stop_chars: set) -> list[Token]:
         s = self._snapshot
         return self._build_token(
             t=T.ANCHOR,
@@ -361,7 +374,7 @@ class Lexer:
             s=s,
         )
 
-    def _parse_dash(self) -> Token:
+    def _parse_dash(self) -> list[Token]:
         # If the token after is not a dash or blankspace then we're dealing with a scalar
         if not self.c_future or self.c_future not in {" ", "-"}:
             return self._parse_scalar()
@@ -383,8 +396,11 @@ class Lexer:
                 f"Expected blankspace after dash but found `{self.c}`", pos=s.position
             )
         self._nc()
-        self._add_token(t=T.DASH, value="-", s=s)
-        return self._maybe_add_dents(indent=self.column)
+
+        return [
+            *self._build_token(t=T.DASH, value="-", s=s),
+            *self._maybe_add_dents(indent=self.column),
+        ]
 
     def _check_eof(self) -> bool:
         return self.position == self.input_length
@@ -400,12 +416,14 @@ class Lexer:
             spaces += 1
         return spaces
 
-    def _add_dedents(self, indent: int) -> None:
+    def _build_dedents(self, indent: int) -> list[Token]:
+        dedents = []
         while indent < self.indent_stack[-1]:
-            self._add_token(t=T.DEDENT, value="")
+            dedents.extend(self._build_token(t=T.DEDENT, value=""))
             self.indent_stack.pop()
+        return dedents
 
-    def _maybe_add_dents(self, indent: int) -> Token:
+    def _maybe_add_dents(self, indent: int) -> list[Token]:
         if indent == -1:
             return self._build_token(t=T.EOF, value="")
         if indent > self.indent_stack[-1]:
@@ -413,10 +431,10 @@ class Lexer:
             return self._build_token(t=T.INDENT, value="")
         elif indent < self.indent_stack[-1]:
             # Add potential dedents
-            self._add_dedents(indent=indent)
-        return self._parse_next_token()
+            return self._build_dedents(indent=indent)
+        return []
 
-    def _parse_dents(self) -> Token:
+    def _parse_dents(self) -> list[Token]:
         s = self._snapshot
         self._nl()
         if self._check_eof():
@@ -450,23 +468,20 @@ class Lexer:
 
     def _build_token(
         self, t: T, value: str, s: Snapshot | None = None, quote_char: str | None = None
-    ) -> Token:
+    ) -> list[Token]:
         if not s:
             s = self._snapshot
-        return Token(
-            t=t,
-            value=value,
-            line=s.line,
-            column=s.column,
-            start=s.position,
-            end=s.position + len(value),
-            quote_char=quote_char,
-        )
-
-    def _add_token(self, t: T, value: str, s: Snapshot | None = None) -> None:
-        if not s:
-            s = self._snapshot
-        self.tokens.append(self._build_token(t=t, value=value, s=s))
+        return [
+            Token(
+                t=t,
+                value=value,
+                line=s.line,
+                column=s.column,
+                start=s.position,
+                end=s.position + len(value),
+                quote_char=quote_char,
+            )
+        ]
 
     @property
     def _snapshot(self) -> Snapshot:
