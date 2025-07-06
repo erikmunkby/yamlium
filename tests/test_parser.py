@@ -418,3 +418,24 @@ key1: 'string1'
 key2: "string2"
 key3: string3
 """)
+
+
+def test_irregular_multiline_indentation():
+    comp("""
+key1: line1
+  line2
+    line3
+
+key2: |
+  line2
+  line3
+""")
+
+
+def test_scalar_starting_after_key():
+    comp("""
+key1:
+  scalar start
+
+  scalar_continue
+""")

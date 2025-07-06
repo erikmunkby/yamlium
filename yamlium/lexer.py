@@ -81,6 +81,8 @@ class Lexer:
         while not eof:
             for t in self._parse_next_token():
                 self.tokens.append(t)
+                if t.t == T.INDENT:
+                    self.indent_stack.append(t.column)
                 if t.t == T.EOF:
                     eof = True
         return self.tokens
@@ -193,7 +195,7 @@ class Lexer:
 
     def _parse_scalar(self, extra_stop_chars: set = set()) -> list[Token]:
         s = self._snapshot
-        multiline_type = (
+        scalar_type = (
             T.MULTILINE_PIPE
             if self.c == "|"
             else T.MULTILINE_ARROW
@@ -201,7 +203,7 @@ class Lexer:
             else T.SCALAR
         )
         # If it is a normal scalar
-        if multiline_type == T.SCALAR:
+        if scalar_type == T.SCALAR:
             # Specific checks if its not pipe or arrow.
             # We might not be dealing with a scalar, but rather key, anchor, alias, comment etc.
             stop_characters = {"#", "&"}.union(extra_stop_chars)
@@ -212,9 +214,12 @@ class Lexer:
                     break
                 elif char == ":":
                     self._nc()
+                    value = self.input[s.position : self.position - 1]
+                    if " " in value:
+                        self._raise_error("Unquoted key cannot contain blankspace(s).")
                     return self._build_token(
                         t=T.KEY,
-                        value=self.input[s.position : self.position - 1],
+                        value=value,
                         s=s,
                     )
                 elif char in stop_characters:
@@ -235,58 +240,38 @@ class Lexer:
 
         else:
             # TODO: Add functionality for newline preserve/chomp: |- |+ >- >+
-            pass
-
-        post_multiline_newlines = 0
-        indent = 0
-        multiline_indentation_level = None
-        while self.position < self.input_length:
-            if multiline_type == T.SCALAR and self.c == ":":
-                self._raise_error("Found implicit key after scalar.")
-            if self.c == "\n":
-                # This might be a post multiline newline, e.g.
-                # key: |
-                #   line1
-                #
-                # key2: value
-                post_multiline_newlines += 1
-                self._nl()  # Skip the newline
-                indent = self._count_spaces()
-                if indent == 0:
-                    if self.c == "\n":
-                        # We have a simple empty line
-                        continue
-                    else:
-                        break
-                if indent == -1 or indent <= self.indent_stack[-1]:
+            while self.position < self.input_length:
+                if self.c == "\n":
+                    self._nl()
                     break
-                # Once we found the first multiline indentation level, register it
-                if not multiline_indentation_level:
-                    multiline_indentation_level = indent
-                # Otherwise compare against the multiline indentation level
                 else:
-                    if indent > multiline_indentation_level:
-                        self._raise_error(msg="Irregular multiline string indentation.")
-                    if indent < multiline_indentation_level:
-                        break
-            else:
-                post_multiline_newlines = 0  # Reset since we found more content
-                self._nc()
+                    self._nc()
+            s = self._snapshot
 
-        value = self.input[s.position : self.position]
-        if multiline_type != T.SCALAR:
-            split = value.strip().split("\n")
-            value = "\n".join([x.strip() for x in split[1:]])
+        token_stack = []
+        end_position = self._snapshot.position
+        stop = False
+        while not stop:
+            new_tokens = self._parse_next_token(extra_stop_chars=extra_stop_chars)
+            for i, next_token in enumerate(new_tokens):
+                if next_token.t == T.SCALAR:
+                    end_position = next_token.end
+                    token_stack = []
+                    continue
+                elif next_token.t in {T.INDENT, T.DEDENT, T.EMPTY_LINE}:
+                    token_stack.append(next_token)
+                else:
+                    token_stack.extend(new_tokens[i:])
+                    stop = True
+                    break
 
-        tokens = self._build_token(t=multiline_type, value=value, s=s)
-
-        for _ in range(post_multiline_newlines - 1):
-            tokens.extend(self._build_token(t=T.EMPTY_LINE, value=""))
-        if indent != -1 and indent < self.indent_stack[-1]:
-            # If the most recent indent we fetched is less than indent stack
-            # Then add as a dedent.
-            tokens.extend(self._build_dedents(indent=indent))
-        return tokens
+        value = self.input[s.position : end_position]
+        if scalar_type != T.SCALAR:
+            value = "\n".join([x.strip() for x in value.split("\n")])
+        return [
+            *self._build_token(t=scalar_type, value=value, s=s),
+            *token_stack,
+        ]
 
     def _parse_merge_key(self) -> list[Token]:
         s = self._snapshot
@@ -427,7 +412,6 @@ class Lexer:
         if indent == -1:
             return self._build_token(t=T.EOF, value="")
         if indent > self.indent_stack[-1]:
-            self.indent_stack.append(indent)
             return self._build_token(t=T.INDENT, value="")
         elif indent < self.indent_stack[-1]:
             # Add potential dedents
