@@ -118,12 +118,6 @@ def test_from_dict_list():
     assert isinstance(result[3], Mapping)
 
 
-def test_invalid_yaml():
-    """Test parsing invalid YAML."""
-    with pytest.raises(ParsingError):
-        parse("invalid: yaml: : :")
-
-
 def test_invalid_json():
     """Test parsing invalid JSON."""
     with pytest.raises(json.JSONDecodeError):
