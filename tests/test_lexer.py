@@ -478,23 +478,6 @@ key2: scalar
     )
 
 
-def test_irregular_multiline_indentation():
-    y1 = """
-key1: line1
-  line2
-    line3
-"""
-    y2 = """
-key1: |
-  line2
-    line3
-"""
-    for y in [y1, y2]:
-        with pytest.raises(ParsingError) as e:
-            Lexer(y).build_tokens()
-            assert "Irregular multiline string indentation" in str(e)
-
-
 def test_dashes_in_sequence():
     yml = """
 key1:

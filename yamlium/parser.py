@@ -120,8 +120,8 @@ class Parser:
     # ------------------------------------------------------------------
     def _build_scalar(self, in_mapping: bool = False) -> Scalar:
         t = self._take_token
-        val = t.value.strip()
-        indented = in_mapping and t.line > self._current_line
+        val = t.value.rstrip()
+        indented = in_mapping and t.line > self._current_line and t.t == T.SCALAR
         return self._process_node(
             Scalar(
                 _type=t.t,  # type: ignore
