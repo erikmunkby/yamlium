@@ -197,13 +197,17 @@ class Lexer:
         s = self._snapshot
 
         # We might not be dealing with a scalar, but rather key, anchor, alias, comment etc.
-        stop_characters = {"#", "&"}.union(extra_stop_chars)
+        stop_characters = {"&"}.union(extra_stop_chars)
         while self.position < self.input_length:
             char = self.c
             if char == "\n":
                 # Stop and expect multiline scalar.
                 break
-            elif char == ":":
+            if char == ":":
+                # We might have a key
+                if self.c_future not in {" ", "\n"}:
+                    self._nc()
+                    continue
                 self._nc()
                 value = self.input[s.position : self.position - 1]
                 if " " in value:
@@ -213,14 +217,13 @@ class Lexer:
                     value=value,
                     s=s,
                 )
-            elif char in stop_characters:
+            if char == "#" and self.c_future == " " or char in stop_characters:
                 return self._build_token(
                     t=T.SCALAR,
                     value=self.input[s.position : self.position],
                     s=s,
                 )
-            else:
-                self._nc()
+            self._nc()
 
         if self.position == self.input_length:
             # This scenario happens when we do not end with a newline
