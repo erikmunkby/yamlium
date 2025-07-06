@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.9](https://github.com/erikmunkby/yamlium/compare/v0.1.8...v0.1.9) (2025-07-06)
+
+
+### Bug Fixes
+
+* allow &lt; in scalar ([1b285af](https://github.com/erikmunkby/yamlium/commit/1b285afee431d137f4f80907a7bc76af2025a2ef))
+* keys must be followed by newline or blankspace ([14dfe6b](https://github.com/erikmunkby/yamlium/commit/14dfe6b5e8596d5c9fb68c0764f7d9887420a5f7))
+* next line scalars ([56efbb5](https://github.com/erikmunkby/yamlium/commit/56efbb5b22130596849a44dfa60edb32b316c5cc))
+
 ## [0.1.8](https://github.com/erikmunkby/yamlium/compare/v0.1.7...v0.1.8) (2025-06-15)
 
 
