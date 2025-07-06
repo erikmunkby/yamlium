@@ -534,3 +534,67 @@ normal_key:
   "quoted_key": scalar
 """
     comp(yml, [T.KEY, T.INDENT, T.KEY, T.SCALAR, T.EOF])
+
+
+def test_flow_seq_in_seq():
+    y = """
+flow_seq: [1, [3, 4], 5]
+"""
+    comp(
+        y,
+        [
+            T.KEY,
+            T.SEQUENCE_START,
+            T.SCALAR,
+            T.COMMA,
+            T.SEQUENCE_START,
+            T.SCALAR,
+            T.COMMA,
+            T.SCALAR,
+            T.SEQUENCE_END,
+            T.COMMA,
+            T.SCALAR,
+            T.SEQUENCE_END,
+            T.EOF,
+        ],
+    )
+
+
+def test_mixed_flow_style():
+    yml = """
+mixed: { a: [1, 2], b: { x: 1, y: 2 }, c: [3, { z: 4 }] }
+"""
+    comp(
+        yml,
+        [
+            T.KEY,
+            T.MAPPING_START,
+            T.KEY,
+            T.SEQUENCE_START,
+            T.SCALAR,
+            T.COMMA,
+            T.SCALAR,
+            T.SEQUENCE_END,
+            T.COMMA,
+            T.KEY,
+            T.MAPPING_START,
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,
+            T.KEY,
+            T.SCALAR,
+            T.MAPPING_END,
+            T.COMMA,
+            T.KEY,
+            T.SEQUENCE_START,
+            T.SCALAR,
+            T.COMMA,
+            T.MAPPING_START,
+            T.KEY,
+            T.SCALAR,
+            T.MAPPING_END,
+            T.SEQUENCE_END,
+            T.MAPPING_END,
+            T.EOF,
+        ],
+    )
