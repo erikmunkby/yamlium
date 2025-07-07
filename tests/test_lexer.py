@@ -23,57 +23,45 @@ def test_simple_key_value():
 
 def test_nested_mapping():
     """Test lexing of nested mappings with indentation."""
-    yaml_input = """
+    comp(
+        """
 person:
     name: alice
     age: 30
-    """
-
-    lexer = Lexer(yaml_input)
-    tokens = lexer.build_tokens()
-
-    # Expected token sequence: NEW_LINE, KEY, NEW_LINE, INDENT, KEY, STRING, NEW_LINE, KEY, STRING, DEDENT, EOF
-    expected_types = [
-        T.KEY,
-        T.INDENT,
-        T.KEY,
-        T.SCALAR,
-        T.KEY,
-        T.SCALAR,
-        T.EOF,
-    ]
-
-    assert len(tokens) == len(expected_types)
-    assert [t.t for t in tokens] == expected_types
+""",
+        [
+            T.KEY,
+            T.INDENT,
+            T.KEY,
+            T.SCALAR,
+            T.KEY,
+            T.SCALAR,
+            T.EOF,
+        ],
+    )
 
 
 def test_sequence():
     """Test lexing of sequences (lists)."""
-    yaml_input = """
+    comp(
+        """
 items:
     - first
     - second
-    """
-
-    lexer = Lexer(yaml_input)
-    tokens = lexer.build_tokens()
-
-    # Expected: NEW_LINE, KEY, NEW_LINE, INDENT, DASH, STRING, NEW_LINE, DASH, STRING, DEDENT, EOF
-    expected_types = [
-        T.KEY,
-        T.INDENT,
-        T.DASH,
-        T.INDENT,
-        T.SCALAR,
-        T.DEDENT,
-        T.DASH,
-        T.INDENT,
-        T.SCALAR,
-        T.EOF,
-    ]
-
-    assert len(tokens) == len(expected_types)
-    assert [t.t for t in tokens] == expected_types
+    """,
+        [
+            T.KEY,
+            T.INDENT,
+            T.DASH,
+            T.INDENT,
+            T.SCALAR,
+            T.DEDENT,
+            T.DASH,
+            T.INDENT,
+            T.SCALAR,
+            T.EOF,
+        ],
+    )
 
 
 def test_complex_structure():

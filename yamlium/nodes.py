@@ -393,25 +393,30 @@ class Sequence(list, Node):
             vals = ", ".join([v._to_yaml() for v in self])
             return self._enrich_yaml("[" + vals + "]")
         items = []
-        prefix = _indent(i) + "- "
         for x in self:
             # Check if we should print standalone comments
             items.extend(x._get_sa_comments(i=i))
 
             # If child is a mapping
             if isinstance(x, Mapping):
-                prefix2 = prefix
+                is_first_item = True
                 for k, v in x.items():
-                    items.extend(k._get_sa_comments(i=i))
+                    if is_first_item:
+                        prefix = _indent(i) + "- "
+                        items.extend(k._get_sa_comments(i=i))
+                    else:
+                        prefix = _indent(i) + "  "
+                        items.extend(k._get_sa_comments(i=i + 1))
 
                     if isinstance(v, (Mapping, Sequence)):
                         # If it is another block, add newline
-                        items.append(f"{prefix2}{k._to_yaml()}\n{v._to_yaml(i + 2)}")
+                        items.append(f"{prefix}{k._to_yaml()}\n{v._to_yaml(i + 2)}")
                     else:
-                        items.append(f"{prefix2}{k._to_yaml()} {v._to_yaml(i + 2)}")
-                    prefix2 = prefix2[:-2] + "  "  # Clean up prefix if deeper mapping.
+                        items.append(f"{prefix}{k._to_yaml()} {v._to_yaml(i + 2)}")
+                    is_first_item = False
 
             else:
+                prefix = _indent(i) + "- "
                 items.append(f"{prefix}{x._to_yaml(i + 1)}")
         return "\n".join(items)
 
