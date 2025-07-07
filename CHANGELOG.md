@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10](https://github.com/erikmunkby/yamlium/compare/v0.1.9...v0.1.10) (2025-07-07)
+
+
+### Bug Fixes
+
+* indentation of multiline in sequence ([bf96bf1](https://github.com/erikmunkby/yamlium/commit/bf96bf14c68ece0ec357c12ff2e09cc6110cc289))
+
 ## [0.1.9](https://github.com/erikmunkby/yamlium/compare/v0.1.8...v0.1.9) (2025-07-06)
 
 
