@@ -439,3 +439,26 @@ key1:
 
   scalar_continue
 """)
+
+
+def test_deeply_nested_multiline():
+    comp("""
+key1:
+  key2:
+    key3: |
+      some text
+      on multiple lines
+    key4: normal scalar
+""")
+
+
+def test_multiline_in_sequence():
+    comp("""
+key1:
+  - name: item1
+    meta: |
+      some multiline
+      text
+  - name: item2
+    meta: some single line info
+""")
