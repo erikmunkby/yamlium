@@ -470,6 +470,10 @@ class Lexer:
 
         # Otherwise parse blank spaces until we find something else
         indent = self._count_spaces()
+        # If it is a comment line, ignore any empty space
+        if self.c_future == "#":
+            return self._parse_comment()
+
         return self._maybe_add_dents(indent=indent)
 
     def _nc(self) -> None:

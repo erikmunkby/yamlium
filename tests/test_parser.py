@@ -462,3 +462,13 @@ key1:
   - name: item2
     meta: some single line info
 """)
+
+
+def test_comments_in_sequences():
+    comp("""
+key1:
+  # Comment on sequence item start
+  - key: val
+    # Comment on mapping object
+    key2: val
+""")
