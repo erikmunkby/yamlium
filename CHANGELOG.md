@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.11](https://github.com/erikmunkby/yamlium/compare/v0.1.10...v0.1.11) (2025-07-07)
+
+
+### Bug Fixes
+
+* comments in sequences ([5c4512a](https://github.com/erikmunkby/yamlium/commit/5c4512a10bd6e9febcbc204b6f81c9e82fb43f7b))
+
 ## [0.1.10](https://github.com/erikmunkby/yamlium/compare/v0.1.9...v0.1.10) (2025-07-07)
 
 
