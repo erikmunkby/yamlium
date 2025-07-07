@@ -126,7 +126,7 @@ class Parser:
             Scalar(
                 _type=t.t,  # type: ignore
                 _line=t.line,
-                _value=_parse_scalar_type(val),
+                _value=_parse_scalar_type(val) if not t.quote_char else str(val),
                 _is_indented=indented,
                 _original_value=val,
                 _quote_char=t.quote_char,

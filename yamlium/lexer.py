@@ -97,9 +97,9 @@ class Lexer:
         print(" " * (self.column - 1), "^" + f"-({self.c}, column={self.column})")
 
     @property
-    def c(self) -> str:
+    def c(self) -> str | None:
         """Get current character."""
-        return self.input[self.position]
+        return self.input[self.position] if self.position < self.input_length else None
 
     @property
     def c_future(self) -> str | None:
