@@ -408,7 +408,7 @@ class Sequence(list, Node):
                         # If it is another block, add newline
                         items.append(f"{prefix2}{k._to_yaml()}\n{v._to_yaml(i + 2)}")
                     else:
-                        items.append(f"{prefix2}{k._to_yaml()} {v._to_yaml(i + 1)}")
+                        items.append(f"{prefix2}{k._to_yaml()} {v._to_yaml(i + 2)}")
                     prefix2 = prefix2[:-2] + "  "  # Clean up prefix if deeper mapping.
 
             else:
