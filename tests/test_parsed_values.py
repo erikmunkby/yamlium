@@ -17,3 +17,13 @@ key3: string3
         for key, value, obj in y.walk_keys():
             if key == k:
                 assert value == s
+
+
+def test_quoted_values():
+    # Without quotes
+    assert parse("key: false")["key"] == False  # noqa: E712
+    assert parse("key: 123")["key"] == 123
+    # With quotes
+    assert parse('key: "false"')["key"] == "false"
+    assert parse("key: 'false'")["key"] == "false"
+    assert parse("key: '123'")["key"] == "123"
