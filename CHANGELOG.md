@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.12](https://github.com/erikmunkby/yamlium/compare/v0.1.11...v0.1.12) (2025-07-07)
+
+
+### Bug Fixes
+
+* quoted strings remain strings ([863ff7f](https://github.com/erikmunkby/yamlium/commit/863ff7fcd3b64186fca211a5f6a9a139a089f76e))
+
 ## [0.1.11](https://github.com/erikmunkby/yamlium/compare/v0.1.10...v0.1.11) (2025-07-07)
 
 
