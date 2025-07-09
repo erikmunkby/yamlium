@@ -119,11 +119,11 @@ quoted: "quoted string"
     yml = _parse(s)
     for key, value, obj in yml.walk_keys():
         if key == "string":
-            obj[key] = value.str.upper()  # type: ignore
+            obj[key] = value.str.upper()
         elif key == "integer":
-            obj[key] = value * 2  # type: ignore
+            obj[key] = value * 2
         elif key == "float":
-            obj[key] = value * 2  # type: ignore
+            obj[key] = value * 2
         elif key == "boolean_true":
             obj[key] = False
         elif key == "boolean_false":
