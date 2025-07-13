@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.13](https://github.com/erikmunkby/yamlium/compare/v0.1.12...v0.1.13) (2025-07-13)
+
+
+### Bug Fixes
+
+* allow empty yaml document ([32338f9](https://github.com/erikmunkby/yamlium/commit/32338f935c7481e2355c49669f3e2a5944c74d05))
+
 ## [0.1.12](https://github.com/erikmunkby/yamlium/compare/v0.1.11...v0.1.12) (2025-07-07)
 
 
