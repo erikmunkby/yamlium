@@ -288,8 +288,6 @@ class Lexer:
                     multiline_indentation_level = indent
                 # Otherwise compare against the multiline indentation level
                 else:
-                    if indent > multiline_indentation_level:
-                        self._raise_error(msg="Irregular multiline string indentation.")
                     if indent < multiline_indentation_level:
                         break
             else:
