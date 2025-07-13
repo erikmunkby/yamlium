@@ -51,6 +51,8 @@ def parse(input: str | Path) -> Mapping:
         raise ParsingError(
             f"Your file seems to contain multiple yaml documents. Try `{parse_full.__name__}()`"
         )
+    if len(documents) == 0:
+        return Mapping({})
     return documents[0]  # type: ignore
 
 
