@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from yamlium import ParsingError, parse_full
+from yamlium import ParsingError, parse, parse_full
 
 
 def comp(s: str, /, validate_yaml: bool = True, expected_result: str = "") -> None:
@@ -472,3 +472,8 @@ key1:
     # Comment on mapping object
     key2: val
 """)
+
+
+def test_empty_yaml():
+    assert parse("").to_yaml() == ""
+    assert parse_full("").to_yaml() == ""

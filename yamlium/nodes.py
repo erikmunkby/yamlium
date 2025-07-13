@@ -612,6 +612,8 @@ class Document(Sequence):
             items.extend(x.stand_alone_comments)
             items.append(x._to_yaml())
         result = "\n\n---\n".join(items)
+        if not result:
+            return result
         if not result[-1] == "\n":
             # TODO: Add conditional setting here for pyproject.toml
             # To be able to turn off finish with newline
