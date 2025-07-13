@@ -569,3 +569,16 @@ mixed: { a: [1, 2], b: { x: 1, y: 2 }, c: [3, { z: 4 }] }
             T.EOF,
         ],
     )
+
+
+def test_irregular_multiline_indentation():
+    yml = """
+key: >
+  start:
+    - a bullet list
+    - bullet 2
+  some more text
+    - new bullets
+key2: normal scalar
+"""
+    comp(yml, [T.KEY, T.MULTILINE_ARROW, T.KEY, T.SCALAR, T.EOF])
