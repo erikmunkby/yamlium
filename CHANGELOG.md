@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.14](https://github.com/erikmunkby/yamlium/compare/v0.1.13...v0.1.14) (2025-07-23)
+
+
+### Bug Fixes
+
+* allow irregular multiline ([0dd1812](https://github.com/erikmunkby/yamlium/commit/0dd18123e05226c02dc2fa8dc243ae90f81aac9b))
+
 ## [0.1.13](https://github.com/erikmunkby/yamlium/compare/v0.1.12...v0.1.13) (2025-07-13)
 
 
