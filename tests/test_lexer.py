@@ -582,3 +582,21 @@ key: >
 key2: normal scalar
 """
     comp(yml, [T.KEY, T.MULTILINE_ARROW, T.KEY, T.SCALAR, T.EOF])
+
+
+def test_single_quoted_multiline_string():
+    """Test that single-quoted strings can span multiple lines."""
+    yaml_input = """
+key: 'foo
+  bar'
+"""
+    comp(yaml_input, [T.KEY, T.SCALAR, T.EOF])
+
+
+def test_double_quoted_multiline_string():
+    """Test that double-quoted strings can span multiple lines."""
+    yaml_input = """
+key: "foo
+  bar"
+"""
+    comp(yaml_input, [T.KEY, T.SCALAR, T.EOF])
