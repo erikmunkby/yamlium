@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.15](https://github.com/erikmunkby/yamlium/compare/v0.1.14...v0.1.15) (2025-12-27)
+
+
+### Bug Fixes
+
+* indentations in multiline scalar ([83cc317](https://github.com/erikmunkby/yamlium/commit/83cc3172e465d5ac3d0763d0adaa604c80094efa))
+* maintain mapping newlines ([43b59b8](https://github.com/erikmunkby/yamlium/commit/43b59b8005acb6c196395c24a8222d5f2d870e1e))
+* newlines in quotes ([e9cf9b5](https://github.com/erikmunkby/yamlium/commit/e9cf9b5aee48ce636829443fa690bebeeac6bf42))
+
 ## [0.1.14](https://github.com/erikmunkby/yamlium/compare/v0.1.13...v0.1.14) (2025-07-23)
 
 
