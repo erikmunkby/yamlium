@@ -134,7 +134,7 @@ quoted: "quoted string"
 string: HELLO WORLD
 integer: 84 # comment should stay
 float: 6.28 # comment should stay
-boolean_true: false
+boolean_true: false # comment should stay
 boolean_false: true
 null_value: not null anymore
 quoted: "quoted string"
@@ -173,4 +173,86 @@ level1:
       another: changed value
     more: value
   extra: value
+""")
+
+
+def test_whitespace_preservation_between_list_items():
+    """Test that blank lines between list items are preserved when manipulating values."""
+    s = _yml("""
+items:
+  - name: first
+    value: placeholder
+
+  - name: second
+    value: placeholder
+""")
+    yml = _parse(s)
+
+    # Manipulate the YAML by changing values
+    for key, value, obj in yml.walk_keys():
+        if key == "value" and value == "placeholder":
+            obj[key] = "updated"
+
+    # The blank line between the two list items should be preserved
+    assert yml._to_yaml() == _yml("""
+items:
+  - name: first
+    value: updated
+
+  - name: second
+    value: updated
+""")
+
+
+def test_whitespace_preservation_manipulating_first_key():
+    """Test that blank lines are preserved when manipulating the first key in list items."""
+    s = _yml("""
+items:
+  - name: first
+
+    value: placeholder
+
+  - name: second
+    value: placeholder
+""")
+    yml = _parse(s)
+
+    # Manipulate the YAML by changing the first key (name)
+    for key, value, obj in yml.walk_keys():
+        if key == "name":
+            obj[key] = value.str.upper()
+
+    # The blank line between the two list items should be preserved
+    assert yml._to_yaml() == _yml("""
+items:
+  - name: FIRST
+
+    value: placeholder
+
+  - name: SECOND
+    value: placeholder
+""")
+
+
+def test_whitespace_preservation_between_map_items():
+    """Test that blank lines between list items are preserved when manipulating values."""
+    s = _yml("""
+items:
+  name: first
+
+  value: placeholder
+""")
+    yml = _parse(s)
+
+    # Manipulate the YAML by changing values
+    for key, value, obj in yml.walk_keys():
+        if key == "name":
+            obj[key] = "updated"
+
+    # The blank line between the two list items should be preserved
+    assert yml._to_yaml() == _yml("""
+items:
+  name: updated
+
+  value: placeholder
 """)

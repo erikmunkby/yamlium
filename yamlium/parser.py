@@ -293,6 +293,16 @@ class Parser:
                 break
             else:
                 self._raise_unexpected_token()
+
+        # Transfer newlines from the last scalar value to the parent mapping
+        # This preserves whitespace after mappings when the last value is updated
+        if m:
+            keys = list(m.keys())
+            last_value = m[keys[-1]]
+            if isinstance(last_value, Scalar) and last_value.newlines > 0:
+                m.newlines = last_value.newlines
+                last_value.newlines = 0
+
         return m
 
     def _parse_sequence(self) -> Sequence:
