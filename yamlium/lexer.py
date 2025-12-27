@@ -345,14 +345,15 @@ class Lexer:
         self._nc()
         char = self.c
         while char != quote_char:
-            self._nc()
+            if char == "\n":
+                # In YAML, quoted strings can span multiple lines
+                # Track the newline for proper line/column tracking
+                self._nl()
+            else:
+                self._nc()
             if self.position >= self.input_length:
                 self._raise_error(msg="Expected end of quote.", pos=start.position)
             char = self.c
-            if char == "\n":
-                self._raise_error(
-                    msg="Quoted string broken by newline.", pos=start.position
-                )
         self._nc()  # Consume the final quote
         # It might be a quoted key
         if self.c == ":":

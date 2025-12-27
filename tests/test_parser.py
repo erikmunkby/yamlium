@@ -477,3 +477,19 @@ key1:
 def test_empty_yaml():
     assert parse("").to_yaml() == ""
     assert parse_full("").to_yaml() == ""
+
+
+def test_single_quoted_multiline():
+    """Test that single-quoted strings can span multiple lines and preserve formatting."""
+    comp("""
+key: 'foo
+  bar'
+""")
+
+
+def test_double_quoted_multiline():
+    """Test that double-quoted strings can span multiple lines and preserve formatting."""
+    comp("""
+key: "foo
+  bar"
+""")
