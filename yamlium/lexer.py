@@ -296,7 +296,27 @@ class Lexer:
 
         value = self.input[s.position : self.position]
         split = value.strip().split("\n")
-        value = "\n".join([x.strip() for x in split[1:]])
+
+        # Find the base indentation level (indentation of first non-empty line)
+        # We need to preserve relative indentation within the multiline scalar
+        base_indent = multiline_indentation_level if multiline_indentation_level else 0
+
+        # Process each line: remove base indentation but preserve additional indentation
+        processed_lines = []
+        for line in split[1:]:  # Skip the first line (which is just "|" or ">")
+            if not line.strip():  # Empty line
+                processed_lines.append("")
+            else:
+                # Count leading spaces on this line
+                line_indent = len(line) - len(line.lstrip())
+                # Remove base indentation, keep any additional indentation
+                if line_indent >= base_indent:
+                    processed_lines.append(line[base_indent:])
+                else:
+                    # Line has less indentation than base - just strip it
+                    processed_lines.append(line.strip())
+
+        value = "\n".join(processed_lines)
 
         tokens = self._build_token(t=multiline_type, value=value, s=s)
 

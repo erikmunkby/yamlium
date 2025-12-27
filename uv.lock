@@ -810,7 +810,7 @@ wheels = [
 
 [[package]]
 name = "yamlium"
-version = "0.1.6"
+version = "0.1.14"
 source = { editable = "." }
 
 [package.dev-dependencies]
