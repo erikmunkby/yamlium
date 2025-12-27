@@ -414,6 +414,10 @@ class Sequence(list, Node):
                         items.append(f"{prefix}{k._to_yaml()} {v._to_yaml(i + 2)}")
                     is_first_item = False
 
+                # Add mapping's newlines after all its key-value pairs
+                if x.newlines > 0 and items:
+                    items[-1] += "\n" * x.newlines
+
             else:
                 prefix = _indent(i) + "- "
                 items.append(f"{prefix}{x._to_yaml(i + 1)}")
@@ -486,7 +490,15 @@ class Mapping(dict, Node):
                 items.append(f"{_i}{k._to_yaml()}{val}")
             else:
                 items.append(f"{_i}{k._to_yaml()} {v._to_yaml()}")
-        return "\n".join(items) + ("\n" if self._indent == 0 else "")
+
+        result = "\n".join(items)
+        # Add mapping's own newlines at the end
+        if self.newlines > 0:
+            result += "\n" * self.newlines
+        # Add final newline for root-level mappings
+        if self._indent == 0:
+            result += "\n"
+        return result
 
     def __setitem__(self, key: Key | str, value: Any) -> None:
         """Set a key-value pair in the mapping.
@@ -497,7 +509,16 @@ class Mapping(dict, Node):
         """
         if isinstance(key, str):
             key = Key(_value=key)
-        super().__setitem__(key, _convert_type(value))
+
+        # Preserve newlines and comments from old value if it exists
+        old_value = self.get(key)
+        new_value = _convert_type(value)
+        if old_value is not None and isinstance(old_value, Node):
+            new_value.newlines = old_value.newlines
+            new_value.inline_comments = old_value.inline_comments
+            new_value.stand_alone_comments = old_value.stand_alone_comments
+
+        super().__setitem__(key, new_value)
 
     def update(self, other: dict) -> None:
         """Update the mapping with key-value pairs from another dictionary.
