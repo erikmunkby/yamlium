@@ -464,6 +464,63 @@ key1:
 """)
 
 
+def test_multiline_folded_with_indentation():
+    """Test folded scalar (>) with indented content."""
+    comp("""
+key: >
+  - text for scalar
+    - indented bullet
+  - more text
+""")
+
+
+def test_multiline_literal_with_indentation():
+    """Test literal scalar (|) with indented content."""
+    comp("""
+key: |
+  line 1
+    indented line
+  line 3
+""")
+
+
+def test_multiline_with_multiple_indentation_levels():
+    """Test multiline scalar with multiple levels of indentation."""
+    comp("""
+key: >
+  text
+    level 1
+      level 2
+    back to 1
+  back to base
+""")
+
+
+def test_multiline_literal_with_empty_lines_and_indentation():
+    """Test literal scalar with empty lines and indentation."""
+    comp("""
+key: |
+  line 1
+
+    indented line
+
+  back to base
+""")
+
+
+def test_multiline_folded_code_block():
+    """Test folded scalar with code-like indented content."""
+    comp("""
+description: >
+  This function does:
+    - step 1
+    - step 2
+      - nested step
+    - step 3
+  End of description
+""")
+
+
 def test_comments_in_sequences():
     comp("""
 key1:
