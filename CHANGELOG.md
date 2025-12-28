@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.17](https://github.com/erikmunkby/yamlium/compare/v0.1.16...v0.1.17) (2025-12-28)
+
+
+### Bug Fixes
+
+* typing closer to native python ([3f2aaf6](https://github.com/erikmunkby/yamlium/commit/3f2aaf60c00a52e7648492e49e110d4804bfb727))
+
 ## [0.1.16](https://github.com/erikmunkby/yamlium/compare/v0.1.15...v0.1.16) (2025-12-28)
 
 
