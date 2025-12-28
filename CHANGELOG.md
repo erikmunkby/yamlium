@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.16](https://github.com/erikmunkby/yamlium/compare/v0.1.15...v0.1.16) (2025-12-28)
+
+
+### Bug Fixes
+
+* preserve whitespaces in lists ([4aa6744](https://github.com/erikmunkby/yamlium/commit/4aa6744cdb266cb96e654a2fa1a8a4fa86a7a967))
+
 ## [0.1.15](https://github.com/erikmunkby/yamlium/compare/v0.1.14...v0.1.15) (2025-12-27)
 
 
