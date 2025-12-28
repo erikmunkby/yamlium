@@ -13,7 +13,7 @@ def _indent(i: int, /) -> str:
     return "  " * i
 
 
-def _convert_type(obj: dict | list | str, /) -> Node:
+def _convert_type(obj: Any, /) -> Node:
     if hasattr(obj, "_managed"):
         return obj  # type: ignore
     if isinstance(obj, dict):
