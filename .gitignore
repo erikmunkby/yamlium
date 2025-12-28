@@ -14,6 +14,7 @@ wheels/
 htmlcov/
 .ruff_cache/
 .pytest_cache/
+.mypy_cache/
 
 # Experimental notebooks
 **_test.ipynb
