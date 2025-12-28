@@ -256,3 +256,32 @@ items:
 
   value: placeholder
 """)
+
+
+def test_whitespace_preservation_between_list_replacements():
+    """Test that blank lines between list items are preserved when replacing list values."""
+    s = _yml("""
+items:
+  - alice
+
+  - bob
+
+  - charlie
+""")
+    yml = _parse(s)
+
+    # Manipulate the YAML by changing the "bob" value to "BOB"
+    items_list = yml["items"]
+    for i, item in enumerate(items_list):
+        if item == "bob":
+            items_list[i] = "BOB"
+
+    # The blank lines between the list items should be preserved
+    assert yml._to_yaml() == _yml("""
+items:
+  - alice
+
+  - BOB
+
+  - charlie
+""")

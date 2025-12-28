@@ -25,6 +25,15 @@ def _convert_type(obj: dict | list | str, /) -> Node:
     return Scalar(_value=obj)
 
 
+def _preserve_metadata(old_value: Node | None, new_value: Node) -> Node:
+    """Copy metadata (newlines, comments) from old value to new value."""
+    if old_value is not None and isinstance(old_value, Node):
+        new_value.newlines = old_value.newlines
+        new_value.inline_comments = old_value.inline_comments
+        new_value.stand_alone_comments = old_value.stand_alone_comments
+    return new_value
+
+
 class StrManipulator:
     """This class allows string manipulation."""
 
@@ -432,7 +441,10 @@ class Sequence(list, Node):
         super().append(_convert_type(item))
 
     def __setitem__(self, i: int, value: Any) -> None:
-        super().__setitem__(i, _convert_type(value))
+        """Set an item in the sequence."""
+        old_value = self[i] if i < len(self) else None
+        new_value = _preserve_metadata(old_value, _convert_type(value))
+        super().__setitem__(i, new_value)
 
     def extend(self, items: list) -> None:
         """Extend the sequence with multiple items.
@@ -501,23 +513,12 @@ class Mapping(dict, Node):
         return result
 
     def __setitem__(self, key: Key | str, value: Any) -> None:
-        """Set a key-value pair in the mapping.
-
-        Args:
-            key: The key to set. Can be a Key Any or string.
-            value: The value to set. Will be converted to a Node if it isn't one.
-        """
+        """Set a key-value pair in the mapping."""
         if isinstance(key, str):
             key = Key(_value=key)
 
-        # Preserve newlines and comments from old value if it exists
         old_value = self.get(key)
-        new_value = _convert_type(value)
-        if old_value is not None and isinstance(old_value, Node):
-            new_value.newlines = old_value.newlines
-            new_value.inline_comments = old_value.inline_comments
-            new_value.stand_alone_comments = old_value.stand_alone_comments
-
+        new_value = _preserve_metadata(old_value, _convert_type(value))
         super().__setitem__(key, new_value)
 
     def update(self, other: dict) -> None:
