@@ -550,3 +550,49 @@ def test_double_quoted_multiline():
 key: "foo
   bar"
 """)
+
+
+def test_sequence_with_empty_line_and_comment():
+    """Test sequence with empty lines containing spaces, followed by comments.
+
+    Note: Comments at column 0 are attached to the next sequence item and
+    output at the sequence indentation level. This is the expected behavior.
+    """
+    comp("""
+test:
+  - first_item
+  - second_item
+
+  - third_item
+# a comment
+  - fourth_item
+""", expected_result="""
+test:
+  - first_item
+  - second_item
+
+  - third_item
+  # a comment
+  - fourth_item
+""")
+
+
+def test_comment_at_column_zero_in_sequence():
+    """Test that comments at column 0 don't break sequence parsing.
+
+    Note: Comments at column 0 are attached to the next sequence item and
+    output at the sequence indentation level. This is the expected behavior.
+    """
+    comp("""
+items:
+  - item1
+# comment at column 0
+  - item2
+  - item3
+""", expected_result="""
+items:
+  - item1
+  # comment at column 0
+  - item2
+  - item3
+""")
