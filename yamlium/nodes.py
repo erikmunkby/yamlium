@@ -555,6 +555,7 @@ class Scalar(Node):
         _is_indented: bool = False,
         _original_value: str = "",
         _quote_char: str | None = None,
+        _chomp: str = "",  # "", "-" (strip), or "+" (keep) for multiline scalars
     ) -> None:
         super().__init__(_value, _line, _indent)
         self._type = _type
@@ -563,6 +564,7 @@ class Scalar(Node):
         # null, ~, empty space
         self._original_value = _original_value
         self._quote_char = _quote_char
+        self._chomp = _chomp
 
     def __str__(self) -> str:
         return str(self._value)
@@ -577,8 +579,15 @@ class Scalar(Node):
             return self._value
         if self._type == T.MULTILINE_PIPE:
             return self._value
-        # Otherwise we have an arrow multiline, i.e. ignoring newlines.
-        return self._value.replace("\n", " ")  # type: ignore
+        # Otherwise we have an arrow multiline, i.e. folding newlines to spaces.
+        # Preserve trailing newline if present (from chomping), only fold internal newlines.
+        val = self._value
+        if isinstance(val, str):
+            trailing_newline = val.endswith("\n")
+            val = val.rstrip("\n").replace("\n", " ")
+            if trailing_newline:
+                val += "\n"
+        return val
 
     def _to_yaml(self, i: int = 0) -> str:
         if self._type == T.SCALAR:
@@ -591,18 +600,19 @@ class Scalar(Node):
             else:
                 val = str(self._value)
         else:
-            val = "|" if self._type == T.MULTILINE_PIPE else ">"
+            # Multiline scalar: | or > with optional chomping indicator
+            indicator = "|" if self._type == T.MULTILINE_PIPE else ">"
+            indicator += self._chomp  # Add - or + if present
+            val = indicator
             if self._value:
                 i_ = _indent(i)
+                # For the value, we need to strip trailing newlines for proper formatting
+                # (chomping is already applied in the lexer and stored in _value)
+                content = self._value.rstrip("\n") if isinstance(self._value, str) else ""
                 val = (
                     val
                     + "\n"
-                    + "\n".join(
-                        [
-                            (i_ + r) if r else ""
-                            for r in self._value.split("\n")  # type: ignore
-                        ]
-                    )
+                    + "\n".join([(i_ + r) if r else "" for r in content.split("\n")])
                 )
         return self._enrich_yaml(val)
 

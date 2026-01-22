@@ -144,8 +144,9 @@ folded: >
   be joined with spaces
 """,
         {
-            "multiline": "This is a\nmultiline string\nwith multiple lines",
-            "folded": "This is a folded string that will be joined with spaces",
+            # Clip mode (default) adds a single trailing newline per YAML spec
+            "multiline": "This is a\nmultiline string\nwith multiple lines\n",
+            "folded": "This is a folded string that will be joined with spaces\n",
         },
     )
 
