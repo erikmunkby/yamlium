@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/erikmunkby/yamlium/compare/v0.1.17...v0.2.0) (2026-01-22)
+
+
+### Features
+
+* comment ownership ([4ff4645](https://github.com/erikmunkby/yamlium/commit/4ff4645c9136cbe972044962a194603184359e31))
+
+
+### Bug Fixes
+
+* dedented comments no longer raises error ([314fff0](https://github.com/erikmunkby/yamlium/commit/314fff0ddabc366427671801422b6920cc7b837d))
+* security updates ([c74d49c](https://github.com/erikmunkby/yamlium/commit/c74d49c6cf707b8d47b87d336f218880ed5b052d))
+
 ## [0.1.17](https://github.com/erikmunkby/yamlium/compare/v0.1.16...v0.1.17) (2025-12-28)
 
 
