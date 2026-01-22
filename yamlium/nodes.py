@@ -1,12 +1,32 @@
 from __future__ import annotations
 
 import pprint
+import warnings
 from abc import abstractmethod
 from copy import copy
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generator, Iterator, Literal, cast
 
 from .lexer import T
+
+
+@dataclass
+class Comments:
+    """YAML comment storage with head/line/foot semantics.
+
+    Blank lines act as ownership separators:
+    - head: Comments directly above (no blank line between comment and node)
+    - line: Inline comment on same line as node
+    - foot: Comments below node, before next blank line
+    """
+
+    head: list[str] = field(default_factory=list)
+    line: str | None = None
+    foot: list[str] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.head and not self.line and not self.foot
 
 
 def _indent(i: int, /) -> str:
@@ -29,8 +49,11 @@ def _preserve_metadata(old_value: Node | None, new_value: Node) -> Node:
     """Copy metadata (newlines, comments) from old value to new value."""
     if old_value is not None and isinstance(old_value, Node):
         new_value.newlines = old_value.newlines
-        new_value.inline_comments = old_value.inline_comments
-        new_value.stand_alone_comments = old_value.stand_alone_comments
+        new_value.comments = Comments(
+            head=old_value.comments.head.copy(),
+            line=old_value.comments.line,
+            foot=old_value.comments.foot.copy(),
+        )
     return new_value
 
 
@@ -63,8 +86,46 @@ class Node:
         self._indent = _indent
         self._column: int = -99
         self.newlines: int = 0
-        self.stand_alone_comments: list[str] = []
-        self.inline_comments: str | None = None
+        self.comments: Comments = Comments()
+
+    # Backward compatibility properties (deprecated)
+    @property
+    def stand_alone_comments(self) -> list[str]:
+        """Deprecated: Use comments.head instead."""
+        warnings.warn(
+            "stand_alone_comments is deprecated, use comments.head instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.comments.head
+
+    @stand_alone_comments.setter
+    def stand_alone_comments(self, value: list[str]) -> None:
+        warnings.warn(
+            "stand_alone_comments is deprecated, use comments.head instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.comments.head = value
+
+    @property
+    def inline_comments(self) -> str | None:
+        """Deprecated: Use comments.line instead."""
+        warnings.warn(
+            "inline_comments is deprecated, use comments.line instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.comments.line
+
+    @inline_comments.setter
+    def inline_comments(self, value: str | None) -> None:
+        warnings.warn(
+            "inline_comments is deprecated, use comments.line instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.comments.line = value
 
     if TYPE_CHECKING:
 
@@ -118,8 +179,10 @@ class Node:
             f"{k}={v}"
             for k, v in {
                 "newlines": self.newlines,
-                "inline_comment": self.inline_comments,
-                "stand_alone_comments": self.stand_alone_comments,
+                # Use backward-compat names for repr to avoid breaking tests
+                "inline_comment": self.comments.line,
+                "stand_alone_comments": self.comments.head,
+                "foot_comments": self.comments.foot,
             }.items()
             if v
         ]
@@ -163,13 +226,21 @@ class Node:
             return f"Alias('{self._value}')"
         raise ValueError(f"{type(self)} not supported.")
 
-    def _get_sa_comments(self, i: int) -> list[str]:
-        return [_indent(i) + c for c in self.stand_alone_comments]
+    def _get_head_comments(self, i: int) -> list[str]:
+        return [_indent(i) + c for c in self.comments.head]
 
-    def _enrich_yaml(self, s: str, /) -> str:
+    def _get_foot_comments(self, i: int) -> list[str]:
+        return [_indent(i) + c for c in self.comments.foot]
+
+    def _enrich_yaml(self, s: str, /, i: int = 0, foot_indent: int | None = None) -> str:
         output = s
-        if self.inline_comments:
-            output += f" {self.inline_comments}"
+        if self.comments.line:
+            output += f" {self.comments.line}"
+        if self.comments.foot:
+            # foot_indent allows caller to specify different indent for foot comments
+            # (e.g., in mappings, foot comments should be at key indent, not value indent)
+            fi = foot_indent if foot_indent is not None else i
+            output += "\n" + "\n".join(self._get_foot_comments(fi))
         return output + "\n" * self.newlines
 
     @abstractmethod
@@ -403,7 +474,7 @@ class Sequence(list, Node):
         items = []
         for x in self:
             # Check if we should print standalone comments
-            items.extend(x._get_sa_comments(i=i))
+            items.extend(x._get_head_comments(i=i))
 
             # If child is a mapping
             if isinstance(x, Mapping):
@@ -411,14 +482,16 @@ class Sequence(list, Node):
                 for k, v in x.items():
                     if is_first_item:
                         prefix = _indent(i) + "- "
-                        items.extend(k._get_sa_comments(i=i))
+                        items.extend(k._get_head_comments(i=i))
                     else:
                         prefix = _indent(i) + "  "
-                        items.extend(k._get_sa_comments(i=i + 1))
+                        items.extend(k._get_head_comments(i=i + 1))
 
                     if isinstance(v, (Mapping, Sequence)):
                         # If it is another block, add newline
                         items.append(f"{prefix}{k._to_yaml()}\n{v._to_yaml(i + 2)}")
+                    elif isinstance(v, Scalar):
+                        items.append(f"{prefix}{k._to_yaml()} {v._to_yaml(i + 2, foot_indent=i + 1)}")
                     else:
                         items.append(f"{prefix}{k._to_yaml()} {v._to_yaml(i + 2)}")
                     is_first_item = False
@@ -429,7 +502,10 @@ class Sequence(list, Node):
 
             else:
                 prefix = _indent(i) + "- "
-                items.append(f"{prefix}{x._to_yaml(i + 1)}")
+                if isinstance(x, Scalar):
+                    items.append(f"{prefix}{x._to_yaml(i + 1, foot_indent=i)}")
+                else:
+                    items.append(f"{prefix}{x._to_yaml(i + 1)}")
         return "\n".join(items)
 
     def append(self, item: Any) -> None:
@@ -486,7 +562,7 @@ class Mapping(dict, Node):
         items = []
         _i = _indent(i)
         for k, v in self.items():
-            items.extend(k._get_sa_comments(i=i))
+            items.extend(k._get_head_comments(i=i))
             if isinstance(v, (Mapping, Sequence)):
                 if v._is_inline:
                     items.append(f"{_i}{k._to_yaml()} {v._to_yaml()}")
@@ -498,7 +574,7 @@ class Mapping(dict, Node):
                 else:
                     val = (
                         f"\n{_indent(i + 1)}" if v._is_indented else " "
-                    ) + v._to_yaml(i + 1)
+                    ) + v._to_yaml(i + 1, foot_indent=i)
                 items.append(f"{_i}{k._to_yaml()}{val}")
             else:
                 items.append(f"{_i}{k._to_yaml()} {v._to_yaml()}")
@@ -589,7 +665,7 @@ class Scalar(Node):
                 val += "\n"
         return val
 
-    def _to_yaml(self, i: int = 0) -> str:
+    def _to_yaml(self, i: int = 0, foot_indent: int | None = None) -> str:
         if self._type == T.SCALAR:
             if isinstance(self._value, bool):
                 val = "true" if self._value else "false"
@@ -614,7 +690,7 @@ class Scalar(Node):
                     + "\n"
                     + "\n".join([(i_ + r) if r else "" for r in content.split("\n")])
                 )
-        return self._enrich_yaml(val)
+        return self._enrich_yaml(val, i, foot_indent)
 
     if TYPE_CHECKING:
 
@@ -632,15 +708,15 @@ class Alias(Node):
     def __str__(self) -> str:
         return str(self.child.to_dict())
 
-    def _to_yaml(self, i: int = 0, x: bool = False) -> str:
-        return self._enrich_yaml(f"*{self._value}")
+    def _to_yaml(self, i: int = 0, foot_indent: int | None = None) -> str:
+        return self._enrich_yaml(f"*{self._value}", i, foot_indent)
 
 
 class Document(Sequence):
     def _to_yaml(self) -> str:
         items = []
         for x in self:
-            items.extend(x.stand_alone_comments)
+            items.extend(x.comments.head)
             items.append(x._to_yaml())
         result = "\n\n---\n".join(items)
         if not result:

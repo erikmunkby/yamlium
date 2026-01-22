@@ -68,9 +68,9 @@ def test_node_repr():
 
     # Test with comments
     scalar1 = Scalar("value1")
-    scalar1.inline_comments = "# inline comment"
+    scalar1.comments.line = "# inline comment"
     scalar2 = Scalar("value2")
-    scalar2.stand_alone_comments = ["# standalone comment"]
+    scalar2.comments.head = ["# standalone comment"]
 
     mapping_with_comments = Mapping({Key("key1"): scalar1, Key("key2"): scalar2})
     expected_with_comments = (

@@ -728,3 +728,234 @@ def test_chomping_multiline_content():
     result = parse(yaml)
     assert result["key"]._value == "line1\nline2\nline3"
     assert not result["key"]._value.endswith("\n")
+
+
+# =============================================================================
+# Head/Line/Foot comment semantics tests
+# =============================================================================
+
+
+def test_comments_head_line_foot():
+    """Test the plan's example YAML with head/line/foot semantics."""
+    comp("""
+app:
+  name: 'Demo'
+
+  # head
+  version: '1.0.24' # line
+  # foot
+
+  # env docs
+  env: local
+""")
+
+
+def test_comment_ownership_semantics():
+    """Test that comments are correctly classified as head/line/foot."""
+    yaml_str = """
+app:
+  # head for version
+  version: '1.0.24'
+  # foot for version
+
+  # head for env
+  env: local
+"""
+    doc = parse(yaml_str)
+    app = doc["app"]
+
+    # Get the keys to access comments
+    keys = list(app.keys())
+    version_key = keys[0]
+    env_key = keys[1]
+
+    # Version key should have head comment
+    assert version_key.comments.head == ["# head for version"]
+
+    # Version value should have foot comment (comment followed by blank line)
+    version_value = app["version"]
+    assert version_value.comments.foot == ["# foot for version"]
+
+    # Env key should have head comment (comment after blank line)
+    assert env_key.comments.head == ["# head for env"]
+
+
+def test_inline_comment_on_value():
+    """Test that inline comments are attached to the correct node."""
+    yaml_str = """key: value # inline comment
+"""
+    doc = parse(yaml_str)
+    assert doc["key"].comments.line == "# inline comment"
+    assert doc["key"].comments.head == []
+    assert doc["key"].comments.foot == []
+
+
+def test_multiple_head_comments():
+    """Test multiple consecutive head comments."""
+    yaml_str = """
+# comment 1
+# comment 2
+# comment 3
+key: value
+"""
+    doc = parse(yaml_str)
+    key = list(doc.keys())[0]
+    assert key.comments.head == ["# comment 1", "# comment 2", "# comment 3"]
+
+
+def test_multiple_foot_comments():
+    """Test multiple consecutive foot comments followed by blank line."""
+    yaml_str = """
+key1: value1
+# foot 1
+# foot 2
+
+key2: value2
+"""
+    doc = parse(yaml_str)
+    assert doc["key1"].comments.foot == ["# foot 1", "# foot 2"]
+
+
+def test_comments_without_blank_line_become_head():
+    """Test that comments without a following blank line become head of next node."""
+    yaml_str = """
+key1: value1
+# this becomes head of key2
+key2: value2
+"""
+    doc = parse(yaml_str)
+    key2 = list(doc.keys())[1]
+    assert key2.comments.head == ["# this becomes head of key2"]
+    assert doc["key1"].comments.foot == []
+
+
+def test_head_and_foot_comments_together():
+    """Test a node with both head and foot comments."""
+    yaml_str = """
+# head comment
+key: value
+# foot comment
+
+next: value2
+"""
+    doc = parse(yaml_str)
+    key = list(doc.keys())[0]
+    assert key.comments.head == ["# head comment"]
+    assert doc["key"].comments.foot == ["# foot comment"]
+
+
+def test_comments_dataclass_is_empty():
+    """Test the is_empty method on Comments dataclass."""
+    from yamlium.nodes import Comments
+
+    empty = Comments()
+    assert empty.is_empty() is True
+
+    with_head = Comments(head=["# comment"])
+    assert with_head.is_empty() is False
+
+    with_line = Comments(line="# inline")
+    assert with_line.is_empty() is False
+
+    with_foot = Comments(foot=["# foot"])
+    assert with_foot.is_empty() is False
+
+
+def test_backward_compat_stand_alone_comments():
+    """Test backward compatibility via stand_alone_comments property (deprecated)."""
+    import warnings
+
+    yaml_str = """
+# head comment
+key: value
+"""
+    doc = parse(yaml_str)
+    key = list(doc.keys())[0]
+    # Old API should still work but emit deprecation warning
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        assert key.stand_alone_comments == ["# head comment"]
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "comments.head" in str(w[0].message)
+    # Should be same as new API (no warning)
+    assert key.comments.head == ["# head comment"]
+
+
+def test_backward_compat_inline_comments():
+    """Test backward compatibility via inline_comments property (deprecated)."""
+    import warnings
+
+    yaml_str = """key: value # inline
+"""
+    doc = parse(yaml_str)
+    # Old API should still work but emit deprecation warning
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        assert doc["key"].inline_comments == "# inline"
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "comments.line" in str(w[0].message)
+    # Should be same as new API (no warning)
+    assert doc["key"].comments.line == "# inline"
+
+
+def test_foot_comments_roundtrip():
+    """Test that foot comments are preserved in round-trip."""
+    yaml_str = """key1: value1
+# foot comment
+
+key2: value2
+"""
+    doc = parse(yaml_str)
+    assert doc["key1"].comments.foot == ["# foot comment"]
+    # Round-trip should preserve foot comments
+    result = doc.to_yaml()
+    assert "# foot comment" in result
+
+
+def test_nested_structure_comments():
+    """Test comments in nested structures."""
+    yaml_str = """
+outer:
+  # inner head
+  inner: value # inner line
+  # inner foot
+
+  # next head
+  next: value2
+"""
+    doc = parse(yaml_str)
+    outer = doc["outer"]
+    inner_keys = list(outer.keys())
+
+    # Inner key has head comment
+    assert inner_keys[0].comments.head == ["# inner head"]
+    # Inner value has line comment
+    assert outer["inner"].comments.line == "# inner line"
+    # Inner value has foot comment
+    assert outer["inner"].comments.foot == ["# inner foot"]
+    # Next key has head comment
+    assert inner_keys[1].comments.head == ["# next head"]
+
+
+def test_sequence_item_comments():
+    """Test comments on sequence items."""
+    yaml_str = """
+items:
+  # head for item1
+  - item1
+  # foot for item1
+
+  # head for item2
+  - item2
+"""
+    doc = parse(yaml_str)
+    seq = doc["items"]
+
+    # First item has head comment
+    assert seq[0].comments.head == ["# head for item1"]
+    # First item has foot comment
+    assert seq[0].comments.foot == ["# foot for item1"]
+    # Second item has head comment
+    assert seq[1].comments.head == ["# head for item2"]
