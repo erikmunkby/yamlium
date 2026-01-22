@@ -117,16 +117,25 @@ class Parser:
         if not isinstance(n, Alias):
             self.decode_count += 1
 
-        # Check if this node should be the value of an anchor
-        # if self.anchor_cache:
-        #     self.anchors[self.anchor_cache] = n
-        #     self.anchor_cache = None
+        # Comments that were pending (no blank line after previous value) become
+        # HEAD comments of this new node, not FOOT of the previous.
+        # Only comments followed by a blank line become FOOT comments.
+        if self.pending_foot_comments:
+            n.comments.head = self.pending_foot_comments + n.comments.head
+            self.pending_foot_comments = []
 
-        # If no comment cache, return.
-        if not self.comment_cache:
-            return n
-        n.stand_alone_comments = self.comment_cache
-        self.comment_cache = []
+        # Attach head comments from cache (comments after a blank line)
+        if self.comment_cache:
+            n.comments.head = n.comments.head + self.comment_cache
+            self.comment_cache = []
+
+        # Reset blank line state when processing a new node
+        self.saw_blank_line = False
+
+        # Track last value node (keys don't receive foot comments)
+        if not isinstance(n, Key):
+            self.last_value_node = n
+
         return n
 
     # ------------------------------------------------------------------
@@ -196,11 +205,22 @@ class Parser:
     def _handle_comment(self) -> None:
         token = self._take_token
 
-        # If we're on the same line still, add as inline comment.
+        # Inline: same line as current node
         if self._current_line == token.line:
-            self._last_node.inline_comments = token.value
-        else:
+            self._last_node.comments.line = token.value
+            return
+
+        # If no value node exists yet, comments become head of next node
+        if self.last_value_node is None:
             self.comment_cache.append(token.value)
+            return
+
+        # After blank line: head of next node
+        if self.saw_blank_line:
+            self.comment_cache.append(token.value)
+        else:
+            # No blank line yet: potential foot of previous node
+            self.pending_foot_comments.append(token.value)
 
     def _handle_anchor(self) -> Mapping | Scalar | Sequence | Alias:
         n = self._last_node
@@ -239,6 +259,11 @@ class Parser:
             self._handle_comment()
         elif t == T.EMPTY_LINE:
             self._take_token  # Consume token
+            # Flush pending foot comments to last value node
+            if self.pending_foot_comments and self.last_value_node:
+                self.last_value_node.comments.foot = self.pending_foot_comments
+                self.pending_foot_comments = []
+            self.saw_blank_line = True
             self._last_node.newlines += 1
         else:
             return False
@@ -396,6 +421,11 @@ class Parser:
         self.anchors: dict[str, Node] = {}
         self.anchor_cache: str | None = None
         self.comment_cache: list[str] = []
+
+        # Comment classification state (head/line/foot semantics)
+        self.pending_foot_comments: list[str] = []  # May become foot of previous node
+        self.saw_blank_line: bool = False  # Tracks blank line occurrence
+        self.last_value_node: Node | None = None  # Node eligible for foot comments
 
         # Security: depth limiting
         self.current_depth = 0

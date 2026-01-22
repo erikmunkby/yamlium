@@ -88,6 +88,42 @@ for key, value, obj in yml.walk_keys():
 print(yml.to_yaml())
 ```
 
+### Working with Comments
+
+Yamlium provides structured access to YAML comments via the `comments` attribute:
+
+```python
+from yamlium import parse
+
+yaml_str = """
+app:
+  # Database settings
+  db_host: localhost # primary host
+  # TODO: increase timeout
+
+  # Cache config
+  cache_ttl: 3600
+"""
+yml = parse(yaml_str)
+
+# Access comments on a key
+db_key = list(yml["app"].keys())[0]
+print(db_key.comments.head)  # ['# Database settings']
+
+# Access inline and foot comments on a value
+db_value = yml["app"]["db_host"]
+print(db_value.comments.line)  # '# primary host'
+print(db_value.comments.foot)  # ['# TODO: increase timeout']
+
+# Modify comments
+db_value.comments.line = "# updated comment"
+```
+
+Comment types:
+- `comments.head` - comments directly above a node
+- `comments.line` - inline comment on the same line
+- `comments.foot` - comments below a node (before a blank line)
+
 ### JSON Conversion
 
 ```python
