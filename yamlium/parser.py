@@ -48,6 +48,16 @@ class Parser:
     root: Sequence
     stack: deque[Node]
 
+    # Security limits
+    # MAX_DEPTH is set conservatively to catch deeply nested YAML before hitting
+    # Python's default recursion limit (~1000). Due to recursive calls in parsing,
+    # each logical nesting level may use multiple call stack frames.
+    MAX_DEPTH = 200
+    # MAX_ALIAS_RATIO: Maximum ratio of alias references to decoded nodes.
+    # A ratio of 10 allows normal anchor/alias usage while catching potential
+    # alias bomb attacks (exponential expansion through nested aliasing).
+    MAX_ALIAS_RATIO = 10
+
     def __init__(self, input: str) -> None:
         self.input = input
 
@@ -103,6 +113,10 @@ class Parser:
         # Always add the node to the stack.
         self.node_stack.append(n)
 
+        # Track decode count for alias bomb protection (don't count aliases)
+        if not isinstance(n, Alias):
+            self.decode_count += 1
+
         # Check if this node should be the value of an anchor
         # if self.anchor_cache:
         #     self.anchors[self.anchor_cache] = n
@@ -120,7 +134,7 @@ class Parser:
     # ------------------------------------------------------------------
     def _build_scalar(self, in_mapping: bool = False) -> Scalar:
         t = self._take_token
-        val = t.value.rstrip()
+        val = t.value.rstrip() if t.t == T.SCALAR else t.value
         indented = in_mapping and t.line > self._current_line and t.t == T.SCALAR
         return self._process_node(
             Scalar(
@@ -130,6 +144,7 @@ class Parser:
                 _is_indented=indented,
                 _original_value=val,
                 _quote_char=t.quote_char,
+                _chomp=t.chomp,
             )
         )
 
@@ -147,11 +162,30 @@ class Parser:
     def _build_alias(self) -> Alias:
         t = self._take_token
         alias_name = t.value
+
+        # Circular reference detection
+        if alias_name in self.resolving_aliases:
+            self._raise_parsing_error(
+                f"Circular reference detected: anchor '{alias_name}' references itself",
+                pos=t.start,
+            )
+
         node_value = self.anchors.get(alias_name)
-        if not node_value:
+        if node_value is None:
             raise self._raise_parsing_error(
                 f"No anchor found for alias `*{alias_name}`", pos=t.start
             )
+
+        # Alias bomb protection
+        self.alias_count += 1
+        if self.decode_count > 0:
+            ratio = self.alias_count / self.decode_count
+            if ratio > self.MAX_ALIAS_RATIO:
+                self._raise_parsing_error(
+                    f"Excessive aliasing detected (ratio {ratio:.1f} exceeds limit {self.MAX_ALIAS_RATIO})",
+                    pos=t.start,
+                )
+
         return self._process_node(
             Alias(_line=t.line, child=node_value, _value=alias_name)
         )
@@ -175,10 +209,15 @@ class Parser:
             self._raise_parsing_error("Anchors can only be placed with keys.")
         n.anchor = t.value
 
-        # Now find the value beyond the anchor
-        value = self._parse_value()
-        self.anchors[t.value] = value
-        return value
+        # Track that we're resolving this anchor (for circular reference detection)
+        self.resolving_aliases.add(t.value)
+        try:
+            # Now find the value beyond the anchor
+            value = self._parse_value()
+            self.anchors[t.value] = value
+            return value
+        finally:
+            self.resolving_aliases.discard(t.value)
 
     def _handle_indent(self) -> None:
         self._take_token
@@ -187,6 +226,13 @@ class Parser:
     def _handle_dedent(self) -> None:
         self._take_token
         self.current_indent -= 1
+
+    def _check_depth(self) -> None:
+        """Check if current nesting depth exceeds the maximum allowed."""
+        if self.current_depth > self.MAX_DEPTH:
+            self._raise_parsing_error(
+                f"Maximum nesting depth exceeded ({self.MAX_DEPTH})"
+            )
 
     def _check_special_types(self, t: T | None) -> bool:
         if t == T.COMMENT:
@@ -204,6 +250,9 @@ class Parser:
     def _parse_value(
         self, in_mapping: bool = False
     ) -> Mapping | Scalar | Sequence | Alias:
+        # Check depth before any recursive parsing
+        self._check_depth()
+
         t = self._token_type
         if t == T.KEY:
             n = self._last_node
@@ -274,58 +323,68 @@ class Parser:
         self._raise_parsing_error("Inline sequence not closed.")
 
     def _parse_mapping(self) -> Mapping:
-        m = Mapping(_line=self._last_token.line)
-        m._indent = self.current_indent
-        start_indent = self.current_indent
-        m._column = self._peek_token.column  # Set mapping column
+        self.current_depth += 1
+        self._check_depth()
+        try:
+            m = Mapping(_line=self._last_token.line)
+            m._indent = self.current_indent
+            start_indent = self.current_indent
+            m._column = self._peek_token.column  # Set mapping column
 
-        while t := self._token_type:
-            if t == T.KEY:
-                key = self._build_key()
-                m[key] = self._parse_value(in_mapping=True)
-            elif self._check_special_types(t=t):
-                continue
-            elif t == T.DEDENT:
-                self._handle_dedent()
-                if self.current_indent < start_indent:
+            while t := self._token_type:
+                if t == T.KEY:
+                    key = self._build_key()
+                    m[key] = self._parse_value(in_mapping=True)
+                elif self._check_special_types(t=t):
+                    continue
+                elif t == T.DEDENT:
+                    self._handle_dedent()
+                    if self.current_indent < start_indent:
+                        break
+                elif t in _MAPPING_STOP_TOKENS:
                     break
-            elif t in _MAPPING_STOP_TOKENS:
-                break
-            else:
-                self._raise_unexpected_token()
+                else:
+                    self._raise_unexpected_token()
 
-        # Transfer newlines from the last scalar value to the parent mapping
-        # This preserves whitespace after mappings when the last value is updated
-        if m:
-            keys = list(m.keys())
-            last_value = m[keys[-1]]
-            if isinstance(last_value, Scalar) and last_value.newlines > 0:
-                m.newlines = last_value.newlines
-                last_value.newlines = 0
+            # Transfer newlines from the last scalar value to the parent mapping
+            # This preserves whitespace after mappings when the last value is updated
+            if m:
+                keys = list(m.keys())
+                last_value = m[keys[-1]]
+                if isinstance(last_value, Scalar) and last_value.newlines > 0:
+                    m.newlines = last_value.newlines
+                    last_value.newlines = 0
 
-        return m
+            return m
+        finally:
+            self.current_depth -= 1
 
     def _parse_sequence(self) -> Sequence:
-        s = Sequence(_line=self._last_token.line)
-        start_indent = self.current_indent
-        while t := self._token_type:
-            if t == T.DASH:
-                self._take_token
-                # Immediate token after dashes will be an indentation
-                if self._token_type == T.INDENT:
-                    self._handle_indent()
-                s.append(self._parse_value())
-            elif self._check_special_types(t=t):
-                continue
-            elif t == T.DEDENT:
-                self._handle_dedent()
-                if self.current_indent < start_indent:
+        self.current_depth += 1
+        self._check_depth()
+        try:
+            s = Sequence(_line=self._last_token.line)
+            start_indent = self.current_indent
+            while t := self._token_type:
+                if t == T.DASH:
+                    self._take_token
+                    # Immediate token after dashes will be an indentation
+                    if self._token_type == T.INDENT:
+                        self._handle_indent()
+                    s.append(self._parse_value())
+                elif self._check_special_types(t=t):
+                    continue
+                elif t == T.DEDENT:
+                    self._handle_dedent()
+                    if self.current_indent < start_indent:
+                        break
+                elif t in _SEQUENCE_STOP_TOKENS:
                     break
-            elif t in _SEQUENCE_STOP_TOKENS:
-                break
-            else:
-                self._raise_unexpected_token()
-        return s
+                else:
+                    self._raise_unexpected_token()
+            return s
+        finally:
+            self.current_depth -= 1
 
     def parse(self) -> Document:
         # Set up class vars
@@ -337,6 +396,16 @@ class Parser:
         self.anchors: dict[str, Node] = {}
         self.anchor_cache: str | None = None
         self.comment_cache: list[str] = []
+
+        # Security: depth limiting
+        self.current_depth = 0
+
+        # Security: alias bomb protection
+        self.alias_count = 0
+        self.decode_count = 0
+
+        # Security: circular reference detection
+        self.resolving_aliases: set[str] = set()
 
         root = Document()
         while t := self._token_type:

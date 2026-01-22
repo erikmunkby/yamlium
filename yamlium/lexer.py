@@ -49,6 +49,7 @@ class Token:
     start: int
     end: int
     quote_char: str | None = None
+    chomp: str = ""  # "", "-" (strip), or "+" (keep) for multiline scalars
 
 
 @dataclass
@@ -259,8 +260,16 @@ class Lexer:
     def _parse_multiline_scalar(self) -> list[Token]:
         s = self._snapshot
         multiline_type = T.MULTILINE_PIPE if self.c == "|" else T.MULTILINE_ARROW
+        self._nc()  # Consume | or >
 
-        # TODO: Add functionality for newline preserve/chomp: |- |+ >- >+
+        # Parse chomping indicator: - (strip), + (keep), or none (clip)
+        chomp = ""
+        if self.c == "-":
+            chomp = "-"
+            self._nc()
+        elif self.c == "+":
+            chomp = "+"
+            self._nc()
 
         post_multiline_newlines = 0
         indent = 0
@@ -303,7 +312,7 @@ class Lexer:
 
         # Process each line: remove base indentation but preserve additional indentation
         processed_lines = []
-        for line in split[1:]:  # Skip the first line (which is just "|" or ">")
+        for line in split[1:]:  # Skip the first line (which is just "|", ">", "|-", etc.)
             if not line.strip():  # Empty line
                 processed_lines.append("")
             else:
@@ -318,10 +327,30 @@ class Lexer:
 
         value = "\n".join(processed_lines)
 
-        tokens = self._build_token(t=multiline_type, value=value, s=s)
+        # Apply chomping behavior to trailing newlines
+        if chomp == "-":
+            # Strip: remove all trailing newlines
+            value = value.rstrip("\n")
+        elif chomp == "+":
+            # Keep: preserve all trailing newlines
+            # Add back the trailing newlines that were part of the content
+            if post_multiline_newlines > 0:
+                value = value + "\n" * post_multiline_newlines
+        else:
+            # Clip (default): single trailing newline
+            value = value.rstrip("\n")
+            if value:  # Only add newline if there's content
+                value = value + "\n"
 
-        for _ in range(post_multiline_newlines - 1):
-            tokens.extend(self._build_token(t=T.EMPTY_LINE, value=""))
+        tokens = self._build_token(t=multiline_type, value=value, s=s, chomp=chomp)
+
+        # For strip and clip modes, we've handled newlines in the value
+        # For keep mode, we've also included trailing newlines in the value
+        # So we only add EMPTY_LINE tokens if not in keep mode and there are extra newlines
+        if chomp != "+":
+            for _ in range(post_multiline_newlines - 1):
+                tokens.extend(self._build_token(t=T.EMPTY_LINE, value=""))
+
         if indent != -1 and indent < self.indent_stack[-1]:
             # If the most recent indent we fetched is less than indent stack
             # Then add as a dedent.
@@ -519,7 +548,12 @@ class Lexer:
                 break
 
     def _build_token(
-        self, t: T, value: str, s: Snapshot | None = None, quote_char: str | None = None
+        self,
+        t: T,
+        value: str,
+        s: Snapshot | None = None,
+        quote_char: str | None = None,
+        chomp: str = "",
     ) -> list[Token]:
         if not s:
             s = self._snapshot
@@ -532,6 +566,7 @@ class Lexer:
                 start=s.position,
                 end=s.position + len(value),
                 quote_char=quote_char,
+                chomp=chomp,
             )
         ]
 

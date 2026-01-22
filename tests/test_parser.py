@@ -499,16 +499,35 @@ key: >
 def test_multiline_literal_with_empty_lines_and_indentation():
     """Test literal scalar with empty lines and indentation."""
     comp("""
-key: |
+key: >
   line 1
 
     indented line
 
   back to base
 """)
+    # Input has blank lines without indentation
+    comp(
+        "key: |\n"
+        "  line 1\n"
+        "\n"  # blank line without indentation
+        "    indented line\n"
+        "\n"  # blank line without indentation
+        "  back to base\n"
+    )
 
 
-def test_multiline_folded_code_block():
+def test_multiline_literal_preserves_indented_blank_lines():
+    """Test that blank lines in multiline literals preserve their indentation."""
+    # Use explicit string to ensure the blank line has indentation (4 spaces)
+    yaml_input = (
+        "config:\n"
+        "  summary: |\n"
+        "    First paragraph here.\n"
+        "\n"
+        "    Second paragraph here.\n"
+    )
+    comp(yaml_input)
     """Test folded scalar with code-like indented content."""
     comp("""
 description: >
@@ -558,7 +577,8 @@ def test_sequence_with_empty_line_and_comment():
     Note: Comments at column 0 are attached to the next sequence item and
     output at the sequence indentation level. This is the expected behavior.
     """
-    comp("""
+    comp(
+        """
 test:
   - first_item
   - second_item
@@ -566,7 +586,8 @@ test:
   - third_item
 # a comment
   - fourth_item
-""", expected_result="""
+""",
+        expected_result="""
 test:
   - first_item
   - second_item
@@ -574,7 +595,8 @@ test:
   - third_item
   # a comment
   - fourth_item
-""")
+""",
+    )
 
 
 def test_comment_at_column_zero_in_sequence():
@@ -583,16 +605,126 @@ def test_comment_at_column_zero_in_sequence():
     Note: Comments at column 0 are attached to the next sequence item and
     output at the sequence indentation level. This is the expected behavior.
     """
-    comp("""
+    comp(
+        """
 items:
   - item1
 # comment at column 0
   - item2
   - item3
-""", expected_result="""
+""",
+        expected_result="""
 items:
   - item1
   # comment at column 0
   - item2
   - item3
-""")
+""",
+    )
+
+
+# =============================================================================
+# Chomping indicator tests
+# =============================================================================
+
+
+def test_literal_strip():
+    """Test |- strips all trailing newlines."""
+    yaml = "key: |-\n  value\n"
+    result = parse(yaml)
+    # Strip chomping removes all trailing newlines
+    assert result["key"]._value == "value"
+    assert not result["key"]._value.endswith("\n")
+
+
+def test_literal_keep():
+    """Test |+ keeps all trailing newlines."""
+    yaml = "key: |+\n  value\n\n\n"
+    result = parse(yaml)
+    # Keep chomping preserves all trailing newlines
+    assert result["key"]._value == "value\n\n\n"
+
+
+def test_literal_clip():
+    """Test | (clip) adds single trailing newline."""
+    yaml = "key: |\n  value\n\n\n"
+    result = parse(yaml)
+    # Clip chomping (default) adds exactly one trailing newline
+    assert result["key"]._value == "value\n"
+
+
+def test_folded_strip():
+    """Test >- strips all trailing newlines."""
+    yaml = "key: >-\n  value\n"
+    result = parse(yaml)
+    # Strip chomping removes all trailing newlines
+    assert result["key"]._value == "value"
+    assert not result["key"]._value.endswith("\n")
+
+
+def test_folded_keep():
+    """Test >+ keeps all trailing newlines."""
+    yaml = "key: >+\n  value\n\n\n"
+    result = parse(yaml)
+    # Keep chomping preserves all trailing newlines
+    assert result["key"]._value == "value\n\n\n"
+
+
+def test_folded_clip():
+    """Test > (clip) adds single trailing newline."""
+    yaml = "key: >\n  value\n\n\n"
+    result = parse(yaml)
+    # Clip chomping (default) adds exactly one trailing newline
+    assert result["key"]._value == "value\n"
+
+
+def test_chomping_roundtrip_strip():
+    """Test |- is preserved in round-trip."""
+    yaml = """key: |-
+  no trailing newline
+"""
+    result = parse(yaml)
+    output = result.to_yaml()
+    assert "|-" in output
+
+
+def test_chomping_roundtrip_keep():
+    """Test |+ is preserved in round-trip."""
+    yaml = """key: |+
+  keep trailing newlines
+"""
+    result = parse(yaml)
+    output = result.to_yaml()
+    assert "|+" in output
+
+
+def test_chomping_roundtrip_folded_strip():
+    """Test >- is preserved in round-trip."""
+    yaml = """key: >-
+  no trailing newline
+"""
+    result = parse(yaml)
+    output = result.to_yaml()
+    assert ">-" in output
+
+
+def test_chomping_roundtrip_folded_keep():
+    """Test >+ is preserved in round-trip."""
+    yaml = """key: >+
+  keep trailing newlines
+"""
+    result = parse(yaml)
+    output = result.to_yaml()
+    assert ">+" in output
+
+
+def test_chomping_multiline_content():
+    """Test chomping with multiple lines of content."""
+    yaml = """key: |-
+  line1
+  line2
+  line3
+"""
+    result = parse(yaml)
+    assert result["key"]._value == "line1\nline2\nline3"
+    assert not result["key"]._value.endswith("\n")
