@@ -600,3 +600,85 @@ key: "foo
   bar"
 """
     comp(yaml_input, [T.KEY, T.SCALAR, T.EOF])
+
+
+# ============================================================================
+# Single-quote escape tests ('' -> ')
+# ============================================================================
+
+
+def test_single_quote_escape_basic():
+    """Test basic single-quote escaping: '' represents a literal '."""
+    yaml_input = "key: 'it''s a test'\n"
+    tokens = Lexer(yaml_input).build_tokens()
+    assert [t.t for t in tokens] == [T.KEY, T.SCALAR, T.EOF]
+    assert tokens[1].value == "it''s a test"
+
+
+def test_single_quote_escape_multiple():
+    """Test multiple escaped quotes in one string."""
+    yaml_input = "key: 'a''b''c'\n"
+    tokens = Lexer(yaml_input).build_tokens()
+    assert [t.t for t in tokens] == [T.KEY, T.SCALAR, T.EOF]
+    assert tokens[1].value == "a''b''c"
+
+
+def test_single_quote_escape_at_end():
+    """Test escaped quote right before closing: ''' = escaped quote + close."""
+    yaml_input = "key: 'ends with quote'''\n"
+    tokens = Lexer(yaml_input).build_tokens()
+    assert [t.t for t in tokens] == [T.KEY, T.SCALAR, T.EOF]
+    assert tokens[1].value == "ends with quote''"
+
+
+def test_single_quote_escape_two_consecutive():
+    """Test '''' = two escaped quotes = '' in value."""
+    yaml_input = "key: 'two''''quotes'\n"
+    tokens = Lexer(yaml_input).build_tokens()
+    assert [t.t for t in tokens] == [T.KEY, T.SCALAR, T.EOF]
+    assert tokens[1].value == "two''''quotes"
+
+
+def test_single_quote_empty_string():
+    """Test empty single-quoted string ''."""
+    yaml_input = "key: ''\n"
+    tokens = Lexer(yaml_input).build_tokens()
+    assert [t.t for t in tokens] == [T.KEY, T.SCALAR, T.EOF]
+    assert tokens[1].value == ""
+
+
+def test_single_quote_only_escaped_quote():
+    """Test string containing only an escaped quote: ''''."""
+    yaml_input = "key: ''''\n"
+    tokens = Lexer(yaml_input).build_tokens()
+    assert [t.t for t in tokens] == [T.KEY, T.SCALAR, T.EOF]
+    assert tokens[1].value == "''"
+
+
+# ============================================================================
+# Double-quote escape tests (\" -> ")
+# ============================================================================
+
+
+def test_double_quote_escape_basic():
+    """Test basic double-quote escaping with backslash."""
+    yaml_input = 'key: "hello\\"world"\n'
+    tokens = Lexer(yaml_input).build_tokens()
+    assert [t.t for t in tokens] == [T.KEY, T.SCALAR, T.EOF]
+    assert tokens[1].value == 'hello\\"world'
+
+
+def test_double_quote_escape_backslash():
+    """Test escaped backslash in double-quoted string."""
+    yaml_input = 'key: "path\\\\to\\\\file"\n'
+    tokens = Lexer(yaml_input).build_tokens()
+    assert [t.t for t in tokens] == [T.KEY, T.SCALAR, T.EOF]
+    assert tokens[1].value == "path\\\\to\\\\file"
+
+
+def test_double_quote_escape_only_quote():
+    """Test string containing only an escaped quote."""
+    yaml_input = 'key: "\\""\n'
+    tokens = Lexer(yaml_input).build_tokens()
+    assert [t.t for t in tokens] == [T.KEY, T.SCALAR, T.EOF]
+    assert tokens[1].value == '\\"'
