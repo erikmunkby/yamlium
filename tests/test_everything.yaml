@@ -129,3 +129,7 @@ complex_anchor_chains:
   final:
     <<: *derived2 # Final merge
     final: value3
+
+# Complex string
+config:
+  where: '{{ "my_column != date ''2025-08-31''" if target.name == ''prod'' else ''1=1'' }}'
