@@ -393,7 +393,18 @@ class Lexer:
         quote_char = self.c
         self._nc()
         char = self.c
-        while char != quote_char:
+        while True:
+            if char == quote_char:
+                # Check if this is an escaped quote (two consecutive quotes)
+                if quote_char == "'" and self.c_future == "'":
+                    # Skip both quotes - this is an escaped single quote
+                    self._nc()  # Skip first quote
+                    self._nc()  # Skip second quote
+                    char = self.c
+                    continue
+                else:
+                    # Found the closing quote
+                    break
             if char == "\n":
                 # In YAML, quoted strings can span multiple lines
                 # Track the newline for proper line/column tracking
