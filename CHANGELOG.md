@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/erikmunkby/yamlium/compare/v0.2.0...v0.2.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* **lexer:** 🩹 handle escaped quotes in single-quoted strings ([d77198d](https://github.com/erikmunkby/yamlium/commit/d77198d9466f96bfe85d28edc9390fdfdc203d98))
+* support double quote escape ([161fd6e](https://github.com/erikmunkby/yamlium/commit/161fd6e1692ec9fcad5c481c256ef5f851818dc1))
+
 ## [0.2.0](https://github.com/erikmunkby/yamlium/compare/v0.1.17...v0.2.0) (2026-01-22)
 
 
