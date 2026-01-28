@@ -405,7 +405,12 @@ class Lexer:
                 else:
                     # Found the closing quote
                     break
-            if char == "\n":
+            # Handle backslash escapes in double-quoted strings
+            if char == "\\" and quote_char == '"':
+                self._nc()  # Skip the backslash
+                if self.position < self.input_length:
+                    self._nc()  # Skip the escaped character
+            elif char == "\n":
                 # In YAML, quoted strings can span multiple lines
                 # Track the newline for proper line/column tracking
                 self._nl()

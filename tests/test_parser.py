@@ -959,3 +959,36 @@ items:
     assert seq[0].comments.foot == ["# foot for item1"]
     # Second item has head comment
     assert seq[1].comments.head == ["# head for item2"]
+
+
+# =============================================================================
+# Escaped quote tests (round-trip)
+# =============================================================================
+
+
+def test_single_quote_escape_roundtrip():
+    """Test that escaped single quotes are preserved in round-trip."""
+    comp("""
+key: 'it''s a test'
+""")
+
+
+def test_single_quote_escape_multiple_roundtrip():
+    """Test multiple escaped single quotes are preserved."""
+    comp("""
+key: 'a''b''c'
+""")
+
+
+def test_double_quote_escape_roundtrip():
+    """Test that escaped double quotes are preserved in round-trip."""
+    comp("""
+key: "hello\\"world"
+""")
+
+
+def test_double_quote_escape_backslash_roundtrip():
+    """Test that escaped backslashes are preserved in round-trip."""
+    comp("""
+key: "path\\\\to\\\\file"
+""")
