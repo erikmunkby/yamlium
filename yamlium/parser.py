@@ -452,9 +452,9 @@ class Parser:
             elif self._check_special_types(t=t):
                 continue
             elif t == T.MAPPING_START:
-                self._parse_inline_mapping()
+                root.append(self._parse_inline_mapping())
             elif t == T.SEQUENCE_START:
-                self._parse_inline_sequence()
+                root.append(self._parse_inline_sequence())
             elif t == T.DOCUMENT_START:
                 self._take_token
             elif t == T.EOF:
