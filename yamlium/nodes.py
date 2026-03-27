@@ -37,11 +37,11 @@ def _convert_type(obj: Any, /) -> Node:
     if hasattr(obj, "_managed"):
         return obj  # type: ignore
     if isinstance(obj, dict):
-        return Mapping(
-            {Key(_value=key): _convert_type(value) for key, value in obj.items()}
-        )
+        items = {Key(_value=key): _convert_type(value) for key, value in obj.items()}
+        return Mapping(items, _is_inline=not items)
     if isinstance(obj, list):
-        return Sequence([_convert_type(item) for item in obj])
+        items = [_convert_type(item) for item in obj]
+        return Sequence(items, _is_inline=not items)
     return Scalar(_value=obj)
 
 
@@ -232,7 +232,9 @@ class Node:
     def _get_foot_comments(self, i: int) -> list[str]:
         return [_indent(i) + c for c in self.comments.foot]
 
-    def _enrich_yaml(self, s: str, /, i: int = 0, foot_indent: int | None = None) -> str:
+    def _enrich_yaml(
+        self, s: str, /, i: int = 0, foot_indent: int | None = None
+    ) -> str:
         output = s
         if self.comments.line:
             output += f" {self.comments.line}"
@@ -491,7 +493,9 @@ class Sequence(list, Node):
                         # If it is another block, add newline
                         items.append(f"{prefix}{k._to_yaml()}\n{v._to_yaml(i + 2)}")
                     elif isinstance(v, Scalar):
-                        items.append(f"{prefix}{k._to_yaml()} {v._to_yaml(i + 2, foot_indent=i + 1)}")
+                        items.append(
+                            f"{prefix}{k._to_yaml()} {v._to_yaml(i + 2, foot_indent=i + 1)}"
+                        )
                     else:
                         items.append(f"{prefix}{k._to_yaml()} {v._to_yaml(i + 2)}")
                     is_first_item = False
@@ -684,7 +688,9 @@ class Scalar(Node):
                 i_ = _indent(i)
                 # For the value, we need to strip trailing newlines for proper formatting
                 # (chomping is already applied in the lexer and stored in _value)
-                content = self._value.rstrip("\n") if isinstance(self._value, str) else ""
+                content = (
+                    self._value.rstrip("\n") if isinstance(self._value, str) else ""
+                )
                 val = (
                     val
                     + "\n"

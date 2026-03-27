@@ -118,6 +118,47 @@ def test_from_dict_list():
     assert isinstance(result[3], Mapping)
 
 
+def test_from_dict_empty_list():
+    result = from_dict({"q": []})
+    assert result.to_yaml() == "q: []\n"
+
+
+def test_from_dict_empty_dict():
+    result = from_dict({"q": {}})
+    assert result.to_yaml() == "q: {}\n"
+
+
+def test_from_dict_empty_list_and_dict():
+    result = from_dict({"q": [], "w": {}})
+    assert result.to_yaml() == "q: []\nw: {}\n"
+
+
+def test_from_dict_nested_empty():
+    result = from_dict({"a": {"b": []}})
+    assert result.to_yaml() == "a:\n  b: []\n"
+
+
+def test_from_dict_setitem_empty_list():
+    m = from_dict({"key": "value"})
+    m["key"] = []
+    assert "key: []\n" in m.to_yaml()
+
+
+def test_from_dict_empty_nested_in_non_empty():
+    result = from_dict({"a": [1, [], 3]})
+    assert "[]" in result.to_yaml()
+
+
+def test_from_dict_non_empty_list_stays_block():
+    result = from_dict({"q": [1, 2]})
+    assert result.to_yaml() == "q:\n  - 1\n  - 2\n"
+
+
+def test_from_dict_non_empty_dict_stays_block():
+    result = from_dict({"q": {"a": 1}})
+    assert "{" not in result.to_yaml()
+
+
 def test_invalid_json():
     """Test parsing invalid JSON."""
     with pytest.raises(json.JSONDecodeError):
