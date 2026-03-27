@@ -189,7 +189,7 @@ class Lexer:
                     inner -= 1
                     if inner < 0:
                         stop = True
-                if t.t == T.EOF or self.position >= self.input_length:
+                if not stop and (t.t == T.EOF or self.position >= self.input_length):
                     flow_type = "mapping" if mapping else "sequence"
                     self._raise_error(f"Inline {flow_type} not closed.", pos=s.position)
         return tokens
@@ -312,7 +312,9 @@ class Lexer:
 
         # Process each line: remove base indentation but preserve additional indentation
         processed_lines = []
-        for line in split[1:]:  # Skip the first line (which is just "|", ">", "|-", etc.)
+        for line in split[
+            1:
+        ]:  # Skip the first line (which is just "|", ">", "|-", etc.)
             if not line.strip():  # Empty line
                 processed_lines.append("")
             else:

@@ -190,6 +190,31 @@ nested_empty:
 """)
 
 
+def test_inline_sequence_no_trailing_newline():
+    result = parse("q: []")
+    assert result.to_yaml() == "q: []\n"
+
+
+def test_inline_mapping_no_trailing_newline():
+    result = parse("q: {}")
+    assert result.to_yaml() == "q: {}\n"
+
+
+def test_inline_sequence_with_values_no_trailing_newline():
+    result = parse("q: [1, 2, 3]")
+    assert result.to_yaml() == "q: [1, 2, 3]\n"
+
+
+def test_inline_no_newline_matches_with_newline():
+    r1 = parse("q: []")
+    r2 = parse("q: []\n")
+    assert r1.to_yaml() == r2.to_yaml()
+
+
+def test_parsed_empty_inline_roundtrip():
+    comp("q: []\n")
+
+
 def test_complex_nesting():
     """Test deeply nested structures"""
     comp("""

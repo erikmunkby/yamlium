@@ -76,7 +76,10 @@ def from_json(input: str | Path) -> Mapping | Sequence:
         input = input.read_text()
     elif input.endswith(".json"):
         input = Path(input).read_text()
-    return _convert_type(json.loads(input))  # type: ignore
+    result = _convert_type(json.loads(input))
+    # Mark as root-level so to_yaml() appends a trailing newline
+    result._indent = 0
+    return result  # type: ignore
 
 
 def from_dict(input: dict | list) -> Mapping | Sequence:
@@ -91,7 +94,10 @@ def from_dict(input: dict | list) -> Mapping | Sequence:
     Returns:
         Union[Mapping, Sequence]: A Mapping object for dictionaries, or a Sequence object for lists.
     """
-    return _convert_type(input)  # type: ignore
+    result = _convert_type(input)
+    # Mark as root-level so to_yaml() appends a trailing newline
+    result._indent = 0
+    return result  # type: ignore
 
 
 __all__ = [
