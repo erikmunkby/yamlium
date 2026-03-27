@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.2](https://github.com/erikmunkby/yamlium/compare/v0.2.1...v0.2.2) (2026-03-27)
+
+
+### Bug Fixes
+
+* empty collections and inline parsing without newline ([c04eee0](https://github.com/erikmunkby/yamlium/commit/c04eee059cf9233084a48bc25f569c117ac69e72))
+* multiline strings from from_dict/from_json produce valid YAML ([f4b9f74](https://github.com/erikmunkby/yamlium/commit/f4b9f7411d2e3d1a573e8ac0a622b0d2ec7b4aa2))
+* standalone flow-style documents and bare empty root trailing newline ([9f44878](https://github.com/erikmunkby/yamlium/commit/9f44878a28f07d4ff980cd0468d2f15f5c8cc2d1))
+
 ## [0.2.1](https://github.com/erikmunkby/yamlium/compare/v0.2.0...v0.2.1) (2026-01-28)
 
 
