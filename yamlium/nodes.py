@@ -42,6 +42,9 @@ def _convert_type(obj: Any, /) -> Node:
     if isinstance(obj, list):
         items = [_convert_type(item) for item in obj]
         return Sequence(items, _is_inline=not items)
+    if isinstance(obj, str) and "\n" in obj:
+        chomp = "" if obj.endswith("\n") else "-"
+        return Scalar(_value=obj, _type=T.MULTILINE_PIPE, _chomp=chomp)
     return Scalar(_value=obj)
 
 
