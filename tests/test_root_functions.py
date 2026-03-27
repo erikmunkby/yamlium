@@ -159,6 +159,41 @@ def test_from_dict_non_empty_dict_stays_block():
     assert "{" not in result.to_yaml()
 
 
+def test_from_dict_multiline_string():
+    result = from_dict({"a": "b\nc"})
+    assert result.to_yaml() == "a: |-\n  b\n  c\n"
+
+
+def test_from_json_multiline_string():
+    result = from_json('{"a": "b\\nc"}')
+    assert result.to_yaml() == "a: |-\n  b\n  c\n"
+
+
+def test_from_dict_multiline_with_trailing_newline():
+    result = from_dict({"a": "b\nc\n"})
+    assert result.to_yaml() == "a: |\n  b\n  c\n"
+
+
+def test_from_dict_plain_string_stays_scalar():
+    result = from_dict({"a": "hello"})
+    assert result.to_yaml() == "a: hello\n"
+
+
+def test_from_dict_empty_string_stays_scalar():
+    result = from_dict({"a": ""})
+    assert "|" not in result.to_yaml()
+
+
+def test_from_dict_int_unaffected():
+    result = from_dict({"a": 42})
+    assert result.to_yaml() == "a: 42\n"
+
+
+def test_from_dict_bool_unaffected():
+    result = from_dict({"a": True})
+    assert result.to_yaml() == "a: true\n"
+
+
 def test_invalid_json():
     """Test parsing invalid JSON."""
     with pytest.raises(json.JSONDecodeError):
