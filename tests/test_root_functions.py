@@ -118,6 +118,16 @@ def test_from_dict_list():
     assert isinstance(result[3], Mapping)
 
 
+def test_from_dict_bare_empty_dict():
+    result = from_dict({})
+    assert result.to_yaml() == "{}\n"
+
+
+def test_from_dict_bare_empty_list():
+    result = from_dict([])
+    assert result.to_yaml() == "[]\n"
+
+
 def test_from_dict_empty_list():
     result = from_dict({"q": []})
     assert result.to_yaml() == "q: []\n"

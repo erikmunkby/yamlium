@@ -215,6 +215,16 @@ def test_parsed_empty_inline_roundtrip():
     comp("q: []\n")
 
 
+def test_standalone_flow_sequence():
+    result = parse_full("[1, 2, 3]\n")
+    assert len(result) == 1
+
+
+def test_standalone_flow_mapping():
+    result = parse_full("{a: 1, b: 2}\n")
+    assert len(result) == 1
+
+
 def test_complex_nesting():
     """Test deeply nested structures"""
     comp("""

@@ -278,7 +278,11 @@ class Node:
         Returns:
             A string containing the YAML representation of this node.
         """
-        return self._to_yaml()
+        result = self._to_yaml()
+        # Ensure trailing newline for root-level inline collections
+        if self._indent == 0 and not result.endswith("\n"):
+            result += "\n"
+        return result
 
     def yaml_dump(self, destination: str | Path) -> None:
         """Write the node's YAML representation to a file.
