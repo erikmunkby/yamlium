@@ -487,6 +487,12 @@ class Sequence(list, Node):
 
             # If child is a mapping
             if isinstance(x, Mapping):
+                if x._is_inline:
+                    prefix = _indent(i) + "- "
+                    items.append(f"{prefix}{x._to_yaml()}")
+                    if x.newlines > 0:
+                        items[-1] += "\n" * x.newlines
+                    continue
                 is_first_item = True
                 for k, v in x.items():
                     if is_first_item:
