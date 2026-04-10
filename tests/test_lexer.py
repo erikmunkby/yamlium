@@ -682,3 +682,147 @@ def test_double_quote_escape_only_quote():
     tokens = Lexer(yaml_input).build_tokens()
     assert [t.t for t in tokens] == [T.KEY, T.SCALAR, T.EOF]
     assert tokens[1].value == '\\"'
+
+
+def test_flow_mapping_quoted_value_with_internal_space():
+    """Quoted scalar values containing spaces must be lexed correctly inside flow mappings.
+
+    Regression: yamlium raised ParsingError on rows like:
+    { value_ts: "2025-09-30 19:20:02", value_date: "2025-09-30" }
+    because the space inside the quoted value was misinterpreted as part of an
+    unquoted key.
+    """
+    comp(
+        'row: { value_ts: "2025-09-30 19:20:02", value_date: "2025-09-30" }',
+        [
+            T.KEY,
+            T.MAPPING_START,
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,
+            T.KEY,
+            T.SCALAR,
+            T.MAPPING_END,
+            T.EOF,
+        ],
+    )
+
+
+def test_flow_mapping_multiple_quoted_timestamps():
+    """Multiple quoted timestamp values (with spaces) in the same flow mapping.
+
+    Regression: fails when more than one key has a quoted value containing a space,
+    e.g. dbt unit-test rows with both value_ts and transaction_timestamp columns.
+    """
+    comp(
+        '- { value_ts: "2025-09-30 19:20:02", transaction_timestamp: "2025-09-30 19:20:02", amount: -1249.0000 }',
+        [
+            T.DASH,
+            T.INDENT,
+            T.MAPPING_START,
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,
+            T.KEY,
+            T.SCALAR,
+            T.MAPPING_END,
+            T.EOF,
+        ],
+    )
+
+
+def test_flow_mapping_boolean_value_after_quoted_date():
+    """Boolean scalar after a quoted date value must be lexed as a plain SCALAR.
+
+    Regression: yamlium raised ParsingError on rows like:
+    { balance_reported_date: "2025-10-15", is_latest_balance: false }
+    """
+    comp(
+        'row: { balance_reported_date: "2025-10-15", is_latest_balance: false }',
+        [
+            T.KEY,
+            T.MAPPING_START,
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,
+            T.KEY,
+            T.SCALAR,
+            T.MAPPING_END,
+            T.EOF,
+        ],
+    )
+
+
+def test_flow_mapping_sequence_item_dbt_balances_row():
+    """Full dbt unit-test style row: sequence item that is a flow mapping with
+    mixed quoted dates, floats, and a boolean at the end.
+
+    Regression: yamlium raised ParsingError when loading any YAML file that
+    contained rows in this shape (which caused all dbt config scan tests to fail).
+    """
+    comp(
+        '- { account_guid: 5001, account_id: "acc111", balance: -250.0000, balance_reported_date: "2025-10-15", is_latest_balance: false }',
+        [
+            T.DASH,
+            T.INDENT,
+            T.MAPPING_START,
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,
+            T.KEY,
+            T.SCALAR,
+            T.MAPPING_END,
+            T.EOF,
+        ],
+    )
+
+
+def test_flow_mapping_sequence_item_dbt_transactions_row():
+    """Full dbt unit-test style row: long flow mapping with multiple quoted
+    timestamp values each containing a space, plus numeric and null values.
+
+    Regression: yamlium failed when a flow mapping row had more than one quoted
+    value with an internal space (timestamp columns).
+    """
+    comp(
+        '- { transaction_id: 100, account_id: "acc111", value_ts: "2025-09-30 19:20:02", value_date: "2025-09-30", transaction_timestamp: "2025-09-30 19:20:02", amount: -1249.0000, balance: -1249.0000 }',
+        [
+            T.DASH,
+            T.INDENT,
+            T.MAPPING_START,
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,  # transaction_id
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,  # account_id
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,  # value_ts
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,  # value_date
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,  # transaction_timestamp
+            T.KEY,
+            T.SCALAR,
+            T.COMMA,  # amount
+            T.KEY,
+            T.SCALAR,  # balance
+            T.MAPPING_END,
+            T.EOF,
+        ],
+    )
