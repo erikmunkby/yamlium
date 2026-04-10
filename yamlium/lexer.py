@@ -134,7 +134,7 @@ class Lexer:
             self._nc()
             return self._parse_next_token(extra_stop_chars=extra_stop_chars)
         if char == "-":
-            return self._parse_dash()
+            return self._parse_dash(extra_stop_chars=extra_stop_chars)
         if char == "#":
             return self._parse_comment()
         if char == "&":
@@ -466,10 +466,10 @@ class Lexer:
             s=s,
         )
 
-    def _parse_dash(self) -> list[Token]:
+    def _parse_dash(self, extra_stop_chars: set = set()) -> list[Token]:
         # If the token after is not a dash or blankspace then we're dealing with a scalar
         if not self.c_future or self.c_future not in {" ", "-"}:
-            return self._parse_scalar()
+            return self._parse_scalar(extra_stop_chars=extra_stop_chars)
         self._nc()
         s = self._snapshot
         # Check if next character is also a dash, i.e. document separator
