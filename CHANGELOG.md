@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/erikmunkby/yamlium/compare/v0.2.2...v0.2.3) (2026-04-10)
+
+
+### Bug Fixes
+
+* **lexer:** 🐛 preserve flow mappings in sequences ([b831f82](https://github.com/erikmunkby/yamlium/commit/b831f82844676fbbb3836e790b2cbf3c557c1c81))
+
 ## [0.2.2](https://github.com/erikmunkby/yamlium/compare/v0.2.1...v0.2.2) (2026-03-27)
 
 
