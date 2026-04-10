@@ -1027,3 +1027,82 @@ def test_double_quote_escape_backslash_roundtrip():
     comp("""
 key: "path\\\\to\\\\file"
 """)
+
+
+def test_flow_mapping_sequence_items_with_quoted_timestamps():
+    """Sequence of flow-mapping rows with quoted timestamp values containing spaces.
+
+    Regression: yamlium raised ParsingError when any YAML file contained dbt
+    unit-test rows in format: { key: "YYYY-MM-DD HH:MM:SS", ... }
+    """
+    comp(
+        """
+rows:
+- {transaction_id: 100, value_ts: "2025-09-30 19:20:02", value_date: "2025-09-30"}
+- {transaction_id: 200, value_ts: "2025-10-10 14:57:23", value_date: "2025-10-10"}
+""",
+        expected_result="""
+rows:
+  - { transaction_id: 100, value_ts: "2025-09-30 19:20:02", value_date: "2025-09-30" }
+  - { transaction_id: 200, value_ts: "2025-10-10 14:57:23", value_date: "2025-10-10" }
+""",
+    )
+
+
+def test_flow_mapping_sequence_items_with_booleans_and_dates():
+    """Sequence of flow-mapping rows with boolean values after quoted date strings.
+
+    Regression: yamlium raised ParsingError when rows had the pattern:
+    { date_col: "YYYY-MM-DD", bool_col: false }
+    """
+    comp(
+        """
+rows:
+- {account_guid: 5001, account_id: "acc111", balance: -250.0000, balance_reported_date: "2025-10-15", is_latest_balance: false}
+- {account_guid: 5001, account_id: "acc111", balance: -175.0000, balance_reported_date: "2025-10-16", is_latest_balance: true}
+""",
+        expected_result="""
+rows:
+  - { account_guid: 5001, account_id: "acc111", balance: -250.0, balance_reported_date: "2025-10-15", is_latest_balance: false }
+  - { account_guid: 5001, account_id: "acc111", balance: -175.0, balance_reported_date: "2025-10-16", is_latest_balance: true }
+""",
+    )
+
+
+def test_dbt_unit_test_dict_format_rows():
+    """Complete dbt unit-test YAML structure using format: dict with flow-mapping rows.
+
+    This is the top-level shape that dbt's test infrastructure parses.
+    Regression: all dbt config scan tests (test_dbt_configs.py, etc.) errored because
+    yamlium failed to parse any YAML file containing unit tests in this format.
+    """
+    comp(
+        """
+unit_tests:
+- name: test_example
+  model: my_model
+  given:
+  - input: ref(source_table)
+    format: dict
+    rows:
+    - {id: 1, created_at: "2025-01-01 08:00:00", amount: -100.0}
+    - {id: 2, created_at: "2025-01-02 09:30:00", amount: 200.0}
+  expect:
+  - {id: 1, report_date: "2025-01-01", is_latest: false}
+  - {id: 2, report_date: "2025-01-02", is_latest: true}
+""",
+        expected_result="""
+unit_tests:
+  - name: test_example
+    model: my_model
+    given:
+      - input: ref(source_table)
+        format: dict
+        rows:
+          - { id: 1, created_at: "2025-01-01 08:00:00", amount: -100.0 }
+          - { id: 2, created_at: "2025-01-02 09:30:00", amount: 200.0 }
+        expect:
+          - { id: 1, report_date: "2025-01-01", is_latest: false }
+          - { id: 2, report_date: "2025-01-02", is_latest: true }
+""",
+    )
