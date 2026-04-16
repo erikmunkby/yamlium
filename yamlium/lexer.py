@@ -182,6 +182,8 @@ class Lexer:
         inner = 0  # Sometimes we have flow within flow like: [a, [b, c]]
         while not stop:
             for t in self._parse_next_token(extra_stop_chars=extra_scalar_stops):
+                if t.t in {T.INDENT, T.DEDENT}:
+                    continue
                 tokens.append(t)
                 if t.t == start_token_type:
                     inner += 1
