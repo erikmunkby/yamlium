@@ -338,3 +338,22 @@ final:
             },
         },
     )
+
+
+def test_quoted_keys():
+    """Test quoted keys"""
+    _comp(
+        """
+'key': 'value'
+"key2": "value2"
+flow: { "key": "value", '"key2"': value2 }
+""",
+        {
+            "key": "value",
+            "key2": "value2",
+            "flow": {
+                "key": "value",
+                "\"key2\"": "value2"
+            }
+        }
+    )

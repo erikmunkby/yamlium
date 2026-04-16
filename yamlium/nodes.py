@@ -60,6 +60,12 @@ def _preserve_metadata(old_value: Node | None, new_value: Node) -> Node:
     return new_value
 
 
+def _strip_quotes(value):
+    if len(value) >= 2 and value[0] in ('"', "'") and value[0] == value[-1]:
+        return value[1:-1]
+    return value
+
+
 class StrManipulator:
     """This class allows string manipulation."""
 
@@ -312,7 +318,8 @@ class Node:
                     else:
                         val.update(v.to_dict())  # type: ignore
                 else:
-                    val[k._value] = v.to_dict()
+                    key = _strip_quotes(k._value)
+                    val[key] = v.to_dict()
             return val
         if isinstance(self, Alias):
             return self.child.to_dict()
