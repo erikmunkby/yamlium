@@ -176,6 +176,22 @@ def test_flow_style():
 flow_map: { a: 1, b: 2, c: 3 }
 flow_seq: [1, 2, 3, 4]
 mixed: { a: [1, 2], b: { x: 1, y: 2 } }
+pretty: {
+  "a": [
+    1,
+    2,
+  ],
+  "b": {
+    "x": 1,
+    y: 2
+  }
+}
+""",
+         expected_result="""
+flow_map: { a: 1, b: 2, c: 3 }
+flow_seq: [1, 2, 3, 4]
+mixed: { a: [1, 2], b: { x: 1, y: 2 } }
+pretty: { "a": [1, 2], "b": { "x": 1, y: 2 } }
 """)
 
 
