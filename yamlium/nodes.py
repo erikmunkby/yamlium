@@ -60,11 +60,6 @@ def _preserve_metadata(old_value: Node | None, new_value: Node) -> Node:
     return new_value
 
 
-def _strip_quotes(value):
-    if len(value) >= 2 and value[0] in ('"', "'") and value[0] == value[-1]:
-        return value[1:-1]
-    return value
-
 
 class StrManipulator:
     """This class allows string manipulation."""
@@ -318,8 +313,7 @@ class Node:
                     else:
                         val.update(v.to_dict())  # type: ignore
                 else:
-                    key = _strip_quotes(k._value)
-                    val[key] = v.to_dict()
+                    val[k._value] = v.to_dict()
             return val
         if isinstance(self, Alias):
             return self.child.to_dict()
@@ -435,6 +429,7 @@ class Key(Node):
         _line: int = -99,
         _indent: int = -99,
         _is_merge_key: bool = False,
+        _quote_char: str | None = None,
     ) -> None:
         """Initialize a Key node.
 
@@ -443,9 +438,11 @@ class Key(Node):
             _line: The line number in the source YAML file.
             _indent: The indentation level in the source YAML file.
             _is_merge_key: Whether this is a merge key (<<).
+            _quote_char: The quote character used in the source YAML file.
         """
         super().__init__(_value, _line, _indent)
         self._is_merge_key = _is_merge_key
+        self._quote_char = _quote_char
         self.anchor: str | None = None
 
     def __str__(self) -> str:
@@ -459,7 +456,8 @@ class Key(Node):
 
     def _to_yaml(self) -> str:
         anch = f" &{self.anchor}" if self.anchor else ""
-        return self._enrich_yaml(self._value + ":" + anch)  # type: ignore
+        val = f"{self._quote_char}{self._value}{self._quote_char}" if self._quote_char else self._value
+        return self._enrich_yaml(val + ":" + anch)  # type: ignore
 
 
 class Sequence(list, Node):

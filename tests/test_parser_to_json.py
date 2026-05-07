@@ -357,3 +357,27 @@ flow: { "key": "value", '"key2"': value2 }
             }
         }
     )
+
+
+def test_quoted_key_lookup():
+    """Test that quoted keys can be looked up without quotes"""
+    from yamlium import parse
+
+    m = parse('"a": b')
+    assert m["a"] == "b"
+
+    m2 = parse("'key': value")
+    assert m2["key"] == "value"
+
+    m3 = parse('flow: { "x": 1, "y": 2 }')
+    assert m3["flow"]["x"] == 1
+    assert m3["flow"]["y"] == 2
+
+
+def test_quoted_key_deduplication():
+    """Test that differently quoted keys resolve to the same key"""
+    from yamlium import parse
+
+    m = parse('"a": b\na: d')
+    assert m.to_dict() == {"a": "d"}
+    assert m["a"] == "d"

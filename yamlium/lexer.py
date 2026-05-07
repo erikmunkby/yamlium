@@ -428,7 +428,10 @@ class Lexer:
         if self.c == ":":
             self._nc()
             return self._build_token(
-                t=T.KEY, value=self.input[start.position : self.position - 1], s=start
+                t=T.KEY,
+                value=self.input[start.position + 1 : self.position - 2],
+                s=start,
+                quote_char=quote_char,
             )
 
         return self._build_token(
