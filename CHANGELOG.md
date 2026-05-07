@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/erikmunkby/yamlium/compare/v0.2.3...v0.2.4) (2026-05-07)
+
+
+### Bug Fixes
+
+* normalize quoted keys at parse time ([1111497](https://github.com/erikmunkby/yamlium/commit/1111497a366c69175473edaf69775a6f714574ea))
+
 ## [0.2.3](https://github.com/erikmunkby/yamlium/compare/v0.2.2...v0.2.3) (2026-04-10)
 
 
