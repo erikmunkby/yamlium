@@ -165,6 +165,7 @@ class Parser:
                 _line=t.line,
                 _is_merge_key=t.value == "<<",
                 _indent=self.current_indent,
+                _quote_char=t.quote_char,
             )
         )
 
