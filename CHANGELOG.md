@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/erikmunkby/yamlium/compare/v0.2.4...v0.2.5) (2026-05-25)
+
+
+### Bug Fixes
+
+* support anchors on sequence items ([fa0689a](https://github.com/erikmunkby/yamlium/commit/fa0689a355bd029a49f848fc1a37838e87e67680))
+
 ## [0.2.4](https://github.com/erikmunkby/yamlium/compare/v0.2.3...v0.2.4) (2026-05-07)
 
 
