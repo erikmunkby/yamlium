@@ -90,6 +90,7 @@ class Node:
         self._indent = _indent
         self._column: int = -99
         self.newlines: int = 0
+        self.anchor: str | None = None
         self.comments: Comments = Comments()
 
     # Backward compatibility properties (deprecated)
@@ -443,7 +444,6 @@ class Key(Node):
         super().__init__(_value, _line, _indent)
         self._is_merge_key = _is_merge_key
         self._quote_char = _quote_char
-        self.anchor: str | None = None
 
     def __str__(self) -> str:
         return str(self._value)
@@ -490,17 +490,23 @@ class Sequence(list, Node):
             # Check if we should print standalone comments
             items.extend(x._get_head_comments(i=i))
 
+            anchor_str = f"&{x.anchor} " if x.anchor else ""
+
             # If child is a mapping
             if isinstance(x, Mapping):
                 if x._is_inline:
                     prefix = _indent(i) + "- "
-                    items.append(f"{prefix}{x._to_yaml()}")
+                    items.append(f"{prefix}{anchor_str}{x._to_yaml()}")
                     if x.newlines > 0:
                         items[-1] += "\n" * x.newlines
                     continue
                 is_first_item = True
                 for k, v in x.items():
-                    if is_first_item:
+                    if is_first_item and x.anchor:
+                        items.append(f"{_indent(i)}- &{x.anchor}")
+                        prefix = _indent(i) + "  "
+                        items.extend(k._get_head_comments(i=i + 1))
+                    elif is_first_item:
                         prefix = _indent(i) + "- "
                         items.extend(k._get_head_comments(i=i))
                     else:
@@ -525,9 +531,9 @@ class Sequence(list, Node):
             else:
                 prefix = _indent(i) + "- "
                 if isinstance(x, Scalar):
-                    items.append(f"{prefix}{x._to_yaml(i + 1, foot_indent=i)}")
+                    items.append(f"{prefix}{anchor_str}{x._to_yaml(i + 1, foot_indent=i)}")
                 else:
-                    items.append(f"{prefix}{x._to_yaml(i + 1)}")
+                    items.append(f"{prefix}{anchor_str}{x._to_yaml(i + 1)}")
         return "\n".join(items)
 
     def append(self, item: Any) -> None:

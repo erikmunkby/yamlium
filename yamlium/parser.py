@@ -223,18 +223,22 @@ class Parser:
             # No blank line yet: potential foot of previous node
             self.pending_foot_comments.append(token.value)
 
-    def _handle_anchor(self) -> Mapping | Scalar | Sequence | Alias:
+    def _handle_anchor(
+        self, in_mapping: bool = False
+    ) -> Mapping | Scalar | Sequence | Alias:
         n = self._last_node
         t = self._take_token
-        if not isinstance(n, Key):
-            self._raise_parsing_error("Anchors can only be placed with keys.")
-        n.anchor = t.value
+        attach_to_key = in_mapping and isinstance(n, Key)
+
+        if attach_to_key:
+            n.anchor = t.value
 
         # Track that we're resolving this anchor (for circular reference detection)
         self.resolving_aliases.add(t.value)
         try:
-            # Now find the value beyond the anchor
             value = self._parse_value()
+            if not attach_to_key:
+                value.anchor = t.value
             self.anchors[t.value] = value
             return value
         finally:
@@ -299,7 +303,7 @@ class Parser:
         if t == T.DASH:
             return self._parse_sequence()
         if t == T.ANCHOR:
-            return self._handle_anchor()
+            return self._handle_anchor(in_mapping=in_mapping)
         if t == T.ALIAS:
             return self._build_alias()
         if t == T.MAPPING_START:

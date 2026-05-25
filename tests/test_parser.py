@@ -1122,3 +1122,66 @@ unit_tests:
           - { id: 2, report_date: "2025-01-02", is_latest: true }
 """,
     )
+
+
+def test_anchor_on_sequence_item_mapping():
+    """Test anchor placed on a sequence item that is a mapping."""
+    comp("""
+items:
+  - &my_anchor
+    key: value
+    other: data
+  - *my_anchor
+""")
+
+
+def test_anchor_on_sequence_item_scalar():
+    """Test anchor placed on a sequence item that is a scalar."""
+    comp("""
+items:
+  - &my_scalar hello
+  - *my_scalar
+""")
+
+
+def test_anchor_on_sequence_item_with_nested_alias():
+    """Test anchor on sequence item with alias used in nested context."""
+    comp("""
+items:
+  - &my_anchor
+    key: value
+    other: data
+
+  - *my_anchor
+
+  - name: something
+    nested:
+      - *my_anchor
+""")
+
+
+def test_anchor_on_sequence_item_mapping_values():
+    """Test that anchored sequence item mapping resolves correctly."""
+    input_yaml = """
+items:
+  - &my_anchor
+    key: value
+    other: data
+  - *my_anchor
+""".strip() + "\n"
+    result = parse(input_yaml)
+    assert result["items"][0].to_dict() == {"key": "value", "other": "data"}
+    assert result["items"][1].to_dict() == {"key": "value", "other": "data"}
+
+
+def test_multiple_anchors_on_sequence_items():
+    """Test multiple different anchors on sequence items."""
+    comp("""
+items:
+  - &first
+    a: 1
+  - &second
+    b: 2
+  - *first
+  - *second
+""")
