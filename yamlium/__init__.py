@@ -1,10 +1,13 @@
 __version__ = "0.2.5"
 import json
+import re
 from pathlib import Path
 
 from .exceptions import ParsingError
 from .nodes import Alias, Document, Mapping, Scalar, Sequence, _convert_type
 from .parser import Parser
+
+_FRONTMATTER_SEP = re.compile(r"^---[ \t]*$", re.MULTILINE)
 
 
 def parse_full(input: str | Path) -> Document:
@@ -82,6 +85,66 @@ def from_json(input: str | Path) -> Mapping | Sequence:
     return result  # type: ignore
 
 
+def read_markdown(input: str | Path) -> tuple[Mapping | None, str]:
+    """Parse a markdown file or string, extracting YAML frontmatter if present.
+
+    Supports two frontmatter formats:
+    - Standard: file starts with ``---``, YAML content, then closing ``---``
+    - Open: YAML content followed by ``---`` (no opening delimiter)
+
+    If no frontmatter is detected, returns ``(None, full_text)``.
+
+    Args:
+        input: Either a Path object, a string path ending in .md/.markdown,
+            or a raw string containing markdown content.
+
+    Returns:
+        A tuple of (frontmatter, content) where frontmatter is a Mapping
+        or None, and content is the raw string after the frontmatter.
+    """
+    if isinstance(input, Path):
+        text = input.read_text()
+    elif input.endswith((".md", ".markdown")):
+        text = Path(input).read_text()
+    else:
+        text = input
+
+    separators = list(_FRONTMATTER_SEP.finditer(text))
+
+    if not separators:
+        return None, text
+
+    first = separators[0]
+
+    # Standard frontmatter: --- is the first non-whitespace content
+    if not text[: first.start()].strip():
+        if len(separators) < 2:
+            return None, text
+        second = separators[1]
+        yaml_start = first.end() + 1 if first.end() < len(text) else first.end()
+        yaml_str = text[yaml_start : second.start()]
+        content_start = second.end()
+        if content_start < len(text) and text[content_start] == "\n":
+            content_start += 1
+        content = text[content_start:]
+
+        if not yaml_str.strip():
+            return Mapping({}), content
+        return parse(yaml_str), content
+
+    # Open format: YAML before the first ---
+    yaml_str = text[: first.start()]
+    if not yaml_str.strip():
+        return None, text
+
+    content_start = first.end()
+    if content_start < len(text) and text[content_start] == "\n":
+        content_start += 1
+    content = text[content_start:]
+
+    return parse(yaml_str), content
+
+
 def from_dict(input: dict | list) -> Mapping | Sequence:
     """Convert a Python dictionary or list into a Mapping or Sequence object.
 
@@ -102,7 +165,10 @@ def from_dict(input: dict | list) -> Mapping | Sequence:
 
 __all__ = [
     "parse",
+    "parse_full",
+    "read_markdown",
     "from_dict",
+    "from_json",
     "Mapping",
     "Sequence",
     "Scalar",
