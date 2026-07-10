@@ -124,6 +124,33 @@ Comment types:
 - `comments.line` - inline comment on the same line
 - `comments.foot` - comments below a node (before a blank line)
 
+### Reading Markdown Frontmatter
+
+```python
+from yamlium import read_markdown
+
+# Parse a markdown file with YAML frontmatter
+frontmatter, content = read_markdown("post.md")
+
+if frontmatter:
+    print(frontmatter["title"])  # Access YAML fields
+    print(content)               # Raw markdown after the frontmatter
+
+# Also works with raw strings
+text = """---
+title: My Post
+tags: [python, yaml]
+---
+# Hello World
+
+This is the body.
+"""
+frontmatter, content = read_markdown(text)
+```
+
+Supports both standard (`---`-delimited) and open (bare YAML followed by `---`) frontmatter formats.
+If no frontmatter is detected, returns `(None, full_text)`.
+
 ### JSON Conversion
 
 ```python
@@ -144,6 +171,7 @@ yaml_data = from_dict(python_dict)
 
 - `parse(input: str | Path) -> Mapping` Parse a single YAML document
 - `parse_full(input: str | Path) -> Document` Parse multiple YAML documents
+- `read_markdown(input: str | Path) -> tuple[Mapping | None, str]` Extract YAML frontmatter and content from markdown
 - `from_json(input: str | Path) -> Mapping | Sequence` Convert JSON to YAML structure
 - `from_dict(input: dict | list) -> Mapping | Sequence` Convert Python dict/list to YAML structure
 

@@ -11,6 +11,7 @@ from yamlium import (
     from_json,
     parse,
     parse_full,
+    read_markdown,
 )
 
 
@@ -217,3 +218,122 @@ def test_file_not_found():
 
     with pytest.raises(FileNotFoundError):
         from_json("nonexistent.json")
+
+
+# --- read_markdown tests ---
+
+
+def test_read_markdown_standard_frontmatter():
+    text = "---\ntitle: Hello\ntags: [a, b]\n---\n# My Post\n\nBody here.\n"
+    fm, content = read_markdown(text)
+    assert isinstance(fm, Mapping)
+    assert fm["title"] == "Hello"
+    assert fm["tags"][0] == "a"
+    assert content == "# My Post\n\nBody here.\n"
+
+
+def test_read_markdown_open_format():
+    text = "key: value1\nkey2:\n  - item1\n  - item2\n---\nThis is raw content.\n"
+    fm, content = read_markdown(text)
+    assert isinstance(fm, Mapping)
+    assert fm["key"] == "value1"
+    assert fm["key2"][0] == "item1"
+    assert content == "This is raw content.\n"
+
+
+def test_read_markdown_no_frontmatter():
+    text = "# Just a heading\n\nSome paragraph text.\n"
+    fm, content = read_markdown(text)
+    assert fm is None
+    assert content == text
+
+
+def test_read_markdown_empty_frontmatter():
+    text = "---\n---\nContent after empty frontmatter.\n"
+    fm, content = read_markdown(text)
+    assert isinstance(fm, Mapping)
+    assert len(fm) == 0
+    assert content == "Content after empty frontmatter.\n"
+
+
+def test_read_markdown_frontmatter_with_comments():
+    text = "---\n# a yaml comment\ntitle: Hello\n---\nBody.\n"
+    fm, content = read_markdown(text)
+    assert fm["title"] == "Hello"
+    assert content == "Body.\n"
+
+
+def test_read_markdown_content_with_triple_dashes():
+    """Only the first closing --- is used as the frontmatter delimiter."""
+    text = "---\ntitle: Hello\n---\nFirst section\n---\nSecond section\n"
+    fm, content = read_markdown(text)
+    assert fm["title"] == "Hello"
+    assert content == "First section\n---\nSecond section\n"
+
+
+def test_read_markdown_open_format_content_with_triple_dashes():
+    text = "key: val\n---\nPart one\n---\nPart two\n"
+    fm, content = read_markdown(text)
+    assert fm["key"] == "val"
+    assert content == "Part one\n---\nPart two\n"
+
+
+def test_read_markdown_only_opening_separator():
+    """A single --- with no content before it and no closing --- means no frontmatter."""
+    text = "---\nThis looks like yaml but has no closing separator\n"
+    fm, content = read_markdown(text)
+    assert fm is None
+    assert content == text
+
+
+def test_read_markdown_file_path(tmp_path: Path):
+    md_file = tmp_path / "post.md"
+    md_file.write_text("---\ntitle: From File\n---\n# Heading\n")
+    fm, content = read_markdown(md_file)
+    assert fm["title"] == "From File"
+    assert content == "# Heading\n"
+
+
+def test_read_markdown_string_path(tmp_path: Path):
+    md_file = tmp_path / "post.md"
+    md_file.write_text("---\ntitle: From String Path\n---\nBody.\n")
+    fm, content = read_markdown(str(md_file))
+    assert fm["title"] == "From String Path"
+    assert content == "Body.\n"
+
+
+def test_read_markdown_path_object_non_md(tmp_path: Path):
+    """Path objects are always read regardless of extension."""
+    txt_file = tmp_path / "data.txt"
+    txt_file.write_text("---\nkey: val\n---\nstuff\n")
+    fm, content = read_markdown(txt_file)
+    assert fm["key"] == "val"
+    assert content == "stuff\n"
+
+
+def test_read_markdown_preserves_yaml_structure():
+    text = "---\n# Comment above\nname: test # inline\n---\nBody.\n"
+    fm, content = read_markdown(text)
+    yaml_out = fm.to_yaml()
+    assert "# Comment above" in yaml_out
+    assert "# inline" in yaml_out
+
+
+def test_read_markdown_leading_newline():
+    text = "\n---\ntitle: Hello\n---\nBody.\n"
+    fm, content = read_markdown(text)
+    assert fm["title"] == "Hello"
+    assert content == "Body.\n"
+
+
+def test_read_markdown_no_trailing_content():
+    text = "---\ntitle: Hello\n---\n"
+    fm, content = read_markdown(text)
+    assert fm["title"] == "Hello"
+    assert content == ""
+
+
+def test_read_markdown_empty_string():
+    fm, content = read_markdown("")
+    assert fm is None
+    assert content == ""
