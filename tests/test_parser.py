@@ -443,6 +443,20 @@ mixed: { a: [1, 2], b: { x: 1, y: 2 }, c: [3, { z: 4 }] }
 """)
 
 
+@pytest.mark.parametrize(
+    "s",
+    [
+        "k:\n  - a: 1\n    b: [1, 2]\n    c: { x: 1 }",
+        "k:\n  - - x\n    - y\n  - - z",
+        "k:\n  - &a\n    - x\n  - *a",
+        "k:\n  - - a: 1\n      b: 2",
+        "k:\n  - # c\n    - x",
+    ],
+)
+def test_nested_collections_in_sequence_roundtrip(s: str):
+    comp(s)
+
+
 def test_complex_merge_keys():
     """Test YAML merge keys with multiple sources"""
     comp("""

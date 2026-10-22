@@ -514,7 +514,7 @@ class Sequence(list, Node):
                         prefix = _indent(i) + "  "
                         items.extend(k._get_head_comments(i=i + 1))
 
-                    if isinstance(v, (Mapping, Sequence)):
+                    if isinstance(v, (Mapping, Sequence)) and not v._is_inline:
                         # If it is another block, add newline
                         items.append(f"{prefix}{k._to_yaml()}\n{v._to_yaml(i + 2)}")
                     elif isinstance(v, Scalar):
@@ -533,6 +533,14 @@ class Sequence(list, Node):
                 prefix = _indent(i) + "- "
                 if isinstance(x, Scalar):
                     items.append(f"{prefix}{anchor_str}{x._to_yaml(i + 1, foot_indent=i)}")
+                elif isinstance(x, Sequence) and not x._is_inline:
+                    nested = x._to_yaml(i + 1)
+                    if x.anchor:
+                        # `- &a - x` is invalid, so the anchor gets its own line
+                        items.append(f"{_indent(i)}- &{x.anchor}\n{nested}")
+                    else:
+                        # Compact `- - x`: the first item shares the dash line
+                        items.append(prefix + nested.lstrip(" "))
                 else:
                     items.append(f"{prefix}{anchor_str}{x._to_yaml(i + 1)}")
         return "\n".join(items)
