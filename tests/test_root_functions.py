@@ -160,6 +160,11 @@ def test_from_dict_empty_nested_in_non_empty():
     assert "[]" in result.to_yaml()
 
 
+def test_from_dict_nested_collections_in_list_output_is_parsable():
+    data = {"k": [{"a": [], "b": {}, "c": [[1, 2], []]}, [], [{"x": 1}]]}
+    assert parse(from_dict(data).to_yaml()).to_dict() == data
+
+
 def test_from_dict_non_empty_list_stays_block():
     result = from_dict({"q": [1, 2]})
     assert result.to_yaml() == "q:\n  - 1\n  - 2\n"
