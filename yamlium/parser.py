@@ -16,6 +16,7 @@ from .nodes import (
     Node,
     Scalar,
     Sequence,
+    _unquote,
 )
 
 DEBUG = os.environ.get("DEBUG_PARSER", "").lower() == "true"
@@ -143,13 +144,16 @@ class Parser:
     # ------------------------------------------------------------------
     def _build_scalar(self, in_mapping: bool = False) -> Scalar:
         t = self._take_token
-        val = t.value.rstrip() if t.t == T.SCALAR else t.value
+        # Quoted text ends at its closing quote, so trailing spaces are content.
+        val = t.value.rstrip() if t.t == T.SCALAR and not t.quote_char else t.value
         indented = in_mapping and t.line > self._current_line and t.t == T.SCALAR
         return self._process_node(
             Scalar(
                 _type=t.t,  # type: ignore
                 _line=t.line,
-                _value=_parse_scalar_type(val) if not t.quote_char else str(val),
+                _value=_unquote(val, t.quote_char)
+                if t.quote_char
+                else _parse_scalar_type(val),
                 _is_indented=indented,
                 _original_value=val,
                 _quote_char=t.quote_char,
@@ -161,11 +165,12 @@ class Parser:
         t = self._take_token
         return self._process_node(
             Key(
-                _value=t.value,
+                _value=_unquote(t.value, t.quote_char) if t.quote_char else t.value,
                 _line=t.line,
                 _is_merge_key=t.value == "<<",
                 _indent=self.current_indent,
                 _quote_char=t.quote_char,
+                _original_value=t.value,
             )
         )
 

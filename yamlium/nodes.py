@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import pprint
+import re
 import warnings
 from abc import abstractmethod
 from copy import copy
@@ -32,6 +34,65 @@ class Comments:
 
 def _indent(i: int, /) -> str:
     return "  " * i
+
+
+# Double-quoted escape sequences (YAML 1.2, section 5.7): escape char -> value.
+_ESCAPES = {
+    "0": "\0", "a": "\a", "b": "\b", "t": "\t", "\t": "\t", "n": "\n", "v": "\v",
+    "f": "\f", "r": "\r", "e": "\x1b", " ": " ", '"': '"', "/": "/", "\\": "\\",
+    "N": "\x85", "_": "\xa0", "L": "\u2028", "P": "\u2029",
+}  # fmt: skip
+# A line break plus surrounding whitespace, capturing any following empty lines.
+_FOLD = r"[ \t]*\n((?:[ \t]*\n)*)[ \t]*"
+_SINGLE_QUOTED_RE = re.compile(r"''|" + _FOLD)
+_DOUBLE_QUOTED_RE = re.compile(
+    r"\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|\n(?:[ \t]*\n)*[ \t]*|.)|"
+    + _FOLD
+)
+
+
+def _fold(empty_lines: str) -> str:
+    """A single line break folds to a space; each following empty line is a newline."""
+    return "\n" * empty_lines.count("\n") or " "
+
+
+def _unescape(m: re.Match[str]) -> str:
+    esc = m.group(1)
+    if esc is None:
+        return _fold(m.group(2))
+    if esc[0] == "\n":  # Escaped line break: dropped, empty lines after it are kept
+        return "\n" * (esc.count("\n") - 1)
+    if len(esc) > 1 and (code := int(esc[1:], 16)) <= 0x10FFFF:  # \x, \u, \U
+        return chr(code)
+    # Unknown escapes are invalid YAML; keep them verbatim rather than failing.
+    return _ESCAPES.get(esc, m.group())
+
+
+def _unescape_single(m: re.Match[str]) -> str:
+    return "'" if m.group(1) is None else _fold(m.group(1))
+
+
+def _unquote(raw: str, quote_char: str) -> str:
+    """Interpret the source text between quotes as the YAML string it denotes."""
+    if quote_char == "'":
+        if "'" not in raw and "\n" not in raw:
+            return raw
+        return _SINGLE_QUOTED_RE.sub(_unescape_single, raw)
+    if "\\" not in raw and "\n" not in raw:
+        return raw
+    return _DOUBLE_QUOTED_RE.sub(_unescape, raw)
+
+
+def _render_quoted(value: Any, raw: str, quote_char: str) -> str:
+    """Write a quoted value, reusing the source text while the value is unchanged."""
+    if value == _unquote(raw, quote_char):
+        return f"{quote_char}{raw}{quote_char}"
+    value = str(value)
+    # Single quotes cannot escape anything but themselves.
+    if quote_char == "'" and value.isprintable():
+        return "'" + value.replace("'", "''") + "'"
+    # JSON strings are valid YAML double-quoted scalars, bar an unescaped DEL.
+    return json.dumps(value, ensure_ascii=False).replace("\x7f", "\\x7f")
 
 
 def _convert_type(obj: Any, /) -> Node:
@@ -432,6 +493,7 @@ class Key(Node):
         _indent: int = -99,
         _is_merge_key: bool = False,
         _quote_char: str | None = None,
+        _original_value: str = "",
     ) -> None:
         """Initialize a Key node.
 
@@ -441,10 +503,12 @@ class Key(Node):
             _indent: The indentation level in the source YAML file.
             _is_merge_key: Whether this is a merge key (<<).
             _quote_char: The quote character used in the source YAML file.
+            _original_value: The source text between the quotes, escapes intact.
         """
         super().__init__(_value, _line, _indent)
         self._is_merge_key = _is_merge_key
         self._quote_char = _quote_char
+        self._original_value = _original_value
 
     def __str__(self) -> str:
         return str(self._value)
@@ -457,7 +521,11 @@ class Key(Node):
 
     def _to_yaml(self) -> str:
         anch = f" &{self.anchor}" if self.anchor else ""
-        val = f"{self._quote_char}{self._value}{self._quote_char}" if self._quote_char else self._value
+        val = (
+            _render_quoted(self._value, self._original_value, self._quote_char)
+            if self._quote_char
+            else self._value
+        )
         return self._enrich_yaml(val + ":" + anch)  # type: ignore
 
 
@@ -673,8 +741,8 @@ class Scalar(Node):
         super().__init__(_value, _line, _indent)
         self._type = _type
         self._is_indented = _is_indented
-        # Original value is used for the various null representations:
-        # null, ~, empty space
+        # Original value is used for the various null representations
+        # (null, ~, empty space) and the escaped source text of quoted values.
         self._original_value = _original_value
         self._quote_char = _quote_char
         self._chomp = _chomp
@@ -709,7 +777,9 @@ class Scalar(Node):
             elif self._value is None:
                 val = self._original_value
             elif self._quote_char:
-                val = f"{self._quote_char}{self._value}{self._quote_char}"
+                val = _render_quoted(
+                    self._value, self._original_value, self._quote_char
+                )
             else:
                 val = str(self._value)
         else:
