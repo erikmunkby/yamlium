@@ -264,12 +264,18 @@ class Parser:
             self._handle_comment()
         elif t == T.EMPTY_LINE:
             self._take_token  # Consume token
-            # Flush pending foot comments to last value node
-            if self.pending_foot_comments and self.last_value_node:
+            # Flush pending foot comments to last value node. Not a truthiness
+            # check: nodes define __len__, which fails for an int scalar.
+            if self.pending_foot_comments and self.last_value_node is not None:
                 self.last_value_node.comments.foot = self.pending_foot_comments
                 self.pending_foot_comments = []
             self.saw_blank_line = True
-            self._last_node.newlines += 1
+            if self.comment_cache:
+                # Below head comments: stays with them, above the next node.
+                self.comment_cache.append("")
+            elif self.node_stack:
+                self.node_stack[-1].newlines += 1
+            # Blank lines before any content are dropped.
         else:
             return False
         return True
