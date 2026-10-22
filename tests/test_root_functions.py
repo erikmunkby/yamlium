@@ -119,6 +119,18 @@ def test_from_dict_list():
     assert isinstance(result[3], Mapping)
 
 
+def test_parse_root_sequence():
+    result = parse("- name: foo\n- name: bar\n")
+    assert isinstance(result, Sequence)
+    assert result.to_dict() == [{"name": "foo"}, {"name": "bar"}]
+    assert result.to_yaml() == "- name: foo\n- name: bar\n"
+
+
+def test_from_dict_list_output_is_parsable():
+    data = [{"name": "foo", "tags": ["a", "b"]}, {"name": "bar", "n": {"x": 1}}]
+    assert parse(from_dict(data).to_yaml()).to_dict() == data
+
+
 def test_from_dict_bare_empty_dict():
     result = from_dict({})
     assert result.to_yaml() == "{}\n"

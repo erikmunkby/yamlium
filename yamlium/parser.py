@@ -92,14 +92,13 @@ class Parser:
         return self.tokens[self.pos - 1]
 
     @property
-    def _last_node(self) -> Node:
-        return self.node_stack[-1]
+    def _last_node(self) -> Node | None:
+        return self.node_stack[-1] if self.node_stack else None
 
     @property
     def _current_line(self) -> int:
-        if len(self.node_stack) > 0:
-            return self._last_node._line
-        return -1
+        n = self._last_node
+        return -1 if n is None else n._line
 
     def _raise_parsing_error(self, msg: str, pos: int | None = None) -> NoReturn:
         if not pos:
@@ -212,8 +211,9 @@ class Parser:
         token = self._take_token
 
         # Inline: same line as current node
-        if self._current_line == token.line:
-            self._last_node.comments.line = token.value
+        n = self._last_node
+        if n is not None and n._line == token.line:
+            n.comments.line = token.value
             return
 
         # If no value node exists yet, comments become head of next node
@@ -231,18 +231,16 @@ class Parser:
     def _handle_anchor(
         self, in_mapping: bool = False
     ) -> Mapping | Scalar | Sequence | Alias:
-        n = self._last_node
+        key = self._last_node if in_mapping else None
         t = self._take_token
-        attach_to_key = in_mapping and isinstance(n, Key)
-
-        if attach_to_key:
-            n.anchor = t.value
+        if isinstance(key, Key):
+            key.anchor = t.value
 
         # Track that we're resolving this anchor (for circular reference detection)
         self.resolving_aliases.add(t.value)
         try:
             value = self._parse_value()
-            if not attach_to_key:
+            if not isinstance(key, Key):
                 value.anchor = t.value
             self.anchors[t.value] = value
             return value
@@ -297,7 +295,7 @@ class Parser:
         t = self._token_type
         if t == T.KEY:
             n = self._last_node
-            if n._indent == self.current_indent and isinstance(n, Key):
+            if isinstance(n, Key) and n._indent == self.current_indent:
                 return Scalar(
                     _type=T.SCALAR,
                     _line=n._line,
@@ -459,6 +457,11 @@ class Parser:
                 root.append(self._parse_mapping())
             elif t == T.SCALAR:
                 root.append(self._build_scalar())
+            elif t == T.DASH:
+                s = self._parse_sequence()
+                # Mark as root-level so to_yaml() appends a trailing newline
+                s._indent = 0
+                root.append(s)
             # Sometimes indents/dedents exist in root.
             # Simply ignore these.
             elif t == T.INDENT:

@@ -44,7 +44,8 @@ def parse(input: str | Path) -> Mapping:
             If a string ends with .yml or .yaml, it will be treated as a file path.
 
     Returns:
-        Mapping: A Mapping object representing the YAML document.
+        Mapping: A Mapping object representing the YAML document. A document whose
+            root is a sequence returns a Sequence instead.
 
     Raises:
         ParsingError: If the YAML content cannot be parsed or contains multiple documents.

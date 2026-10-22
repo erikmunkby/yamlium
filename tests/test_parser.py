@@ -336,7 +336,6 @@ def test_invalid_yaml():
     invalid_cases = [
         "key: [unclosed sequence",
         "key: {unclosed mapping",
-        "  - improperly indented",
         "key: *undefined_anchor",
     ]
 
@@ -1218,3 +1217,16 @@ items:
   - *first
   - *second
 """)
+
+
+@pytest.mark.parametrize(
+    "s",
+    [
+        "- name: foo\n- name: bar",
+        "- a\n- b",
+        "# head\n- a: 1\n  b: 2\n- c",
+        "- &item x\n- *item",
+    ],
+)
+def test_root_sequence_roundtrip(s: str):
+    comp(s)
