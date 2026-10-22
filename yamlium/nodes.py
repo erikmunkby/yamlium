@@ -16,7 +16,8 @@ class Comments:
     """YAML comment storage with head/line/foot semantics.
 
     Blank lines act as ownership separators:
-    - head: Comments directly above (no blank line between comment and node)
+    - head: Comments directly above (no blank line between comment and node).
+      An empty string is a blank line between head comments and the node.
     - line: Inline comment on same line as node
     - foot: Comments below node, before next blank line
     """
@@ -232,7 +233,7 @@ class Node:
         raise ValueError(f"{type(self)} not supported.")
 
     def _get_head_comments(self, i: int) -> list[str]:
-        return [_indent(i) + c for c in self.comments.head]
+        return [_indent(i) + c if c else "" for c in self.comments.head]
 
     def _get_foot_comments(self, i: int) -> list[str]:
         return [_indent(i) + c for c in self.comments.foot]
@@ -744,10 +745,7 @@ class Alias(Node):
 
 class Document(Sequence):
     def _to_yaml(self) -> str:
-        items = []
-        for x in self:
-            items.extend(x.comments.head)
-            items.append(x._to_yaml())
+        items = ["\n".join([*x.comments.head, x._to_yaml()]) for x in self]
         result = "\n\n---\n".join(items)
         if not result:
             return result

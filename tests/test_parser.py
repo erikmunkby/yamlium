@@ -674,6 +674,25 @@ items:
     )
 
 
+@pytest.mark.parametrize(
+    "s",
+    [
+        "# header\n\na: 1",
+        "# a\n\n# b\n\nk: 1",
+        "a: 1\n# foot of an int\n\nb: 2",
+        "a: 1\n\n# head\n\nb: 2",
+        "a:\n  x: 1\n\n  # head\n\n  y: 2",
+        "# c\nvalue",
+    ],
+)
+def test_blank_lines_around_comments_roundtrip(s: str):
+    comp(s)
+
+
+def test_leading_blank_lines_are_dropped():
+    assert parse("\n\n# c\n\na: 1\n").to_yaml() == "# c\n\na: 1\n"
+
+
 # =============================================================================
 # Chomping indicator tests
 # =============================================================================
