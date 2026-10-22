@@ -169,7 +169,7 @@ yaml_data = from_dict(python_dict)
 
 ### Parsing Functions
 
-- `parse(input: str | Path) -> Mapping` Parse a single YAML document
+- `parse(input: str | Path) -> Mapping` Parse a single YAML document (a `Sequence` if its root is a list)
 - `parse_full(input: str | Path) -> Document` Parse multiple YAML documents
 - `read_markdown(input: str | Path) -> tuple[Mapping | None, str]` Extract YAML frontmatter and content from markdown
 - `from_json(input: str | Path) -> Mapping | Sequence` Convert JSON to YAML structure
