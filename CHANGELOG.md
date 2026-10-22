@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.1](https://github.com/erikmunkby/yamlium/compare/v0.3.0...v0.3.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* decode escape sequences in quoted strings ([a07147a](https://github.com/erikmunkby/yamlium/commit/a07147a22254fa060ba6e45b0415dc2bedcebe41))
+* handle blank lines around comments ([56406bd](https://github.com/erikmunkby/yamlium/commit/56406bd8fd5211555f4595050d4e39204620a6ff))
+* parse sequences at the document root ([3594b42](https://github.com/erikmunkby/yamlium/commit/3594b427af2ce44b7fe544a8ba87c8996a92f2ee))
+* render collections nested in sequence items ([400fe28](https://github.com/erikmunkby/yamlium/commit/400fe2894e12ce4d75043e49b1c1aa125c7028d1))
+
 ## [0.3.0](https://github.com/erikmunkby/yamlium/compare/v0.2.5...v0.3.0) (2026-07-10)
 
 
